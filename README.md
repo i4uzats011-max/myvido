@@ -10,9 +10,11 @@ A Zen-mode YouTube web application built with **Next.js 16**, **React 19**, **Re
    - Automatically filters out all vertical videos and shorts (< 70s threshold + `#shorts` / `#reels` tag blocking).
    - Shows a live badge displaying how many reels were blocked during each search.
 
-2. **🛡️ Built-in Ad-Block Playback Mode**
+2. **🛡️ Built-in Ad-Block Playback Mode & Hyphen Link Converter (`yout-ube.com`)**
    - **Mode A: Zero-Ads Stream (Piped / Invidious)**: Directly streams YouTube videos with Zero Pre-roll Ads, Zero Mid-rolls, and built-in SponsorBlock.
    - **Mode B: YouTube Privacy Embed (`youtube-nocookie.com`)**: Clutter-free embed with zero tracking cookies and clean playback.
+   - **Mode C: yout-ube.com Mode**: 1-click conversion from `youtube.com` to `yout-ube.com` using the hyphen trick to bypass ads.
+   - **⚡ Instant Link Converter**: Paste any normal YouTube link (`youtube.com/watch?v=...`) or short link to instantly play ad-free or copy the converted ad-free link.
 
 3. **🧘 Distraction-Free Zen Homepage**
    - When opened: **NO algorithmic rabbit-hole feed, NO trending clickbait**.

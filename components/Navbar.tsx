@@ -31,8 +31,10 @@ import {
   setActiveView,
   setClearHistoryModalOpen,
 } from '@/store/slices/uiSlice';
-import { setPlayerMode } from '@/store/slices/playerSlice';
+import { setPlayerMode, playVideo } from '@/store/slices/playerSlice';
 import { setScreenTimeModalOpen } from '@/store/slices/screenTimeSlice';
+import { showToast } from '@/store/slices/uiSlice';
+import { extractYouTubeVideoId } from '@/lib/youtube';
 
 export default function Navbar() {
   const dispatch = useAppDispatch();
@@ -77,6 +79,28 @@ export default function Navbar() {
     setShowSuggestions(false);
     dispatch(setQuery(trimmed));
     dispatch(addSearchQueryToHistory(trimmed));
+
+    // Check if user pasted a YouTube or yout-ube URL or video ID directly
+    const directVideoId = extractYouTubeVideoId(trimmed);
+    if (directVideoId) {
+      dispatch(
+        playVideo({
+          id: directVideoId,
+          title: `Ad-Free Video (${directVideoId})`,
+          description: `Direct ad-free playback for: ${trimmed}`,
+          channelTitle: 'Ad-Free Player',
+          channelId: '',
+          thumbnailUrl: `https://i.ytimg.com/vi/${directVideoId}/hqdefault.jpg`,
+          duration: 'Ad-Free Stream',
+          durationSec: 0,
+          viewCount: 'Ad-Free Play',
+          publishedAt: new Date().toISOString(),
+          isShortOrReel: false,
+        })
+      );
+      dispatch(showToast({ message: 'Playing in Ad-Free mode! 🛡️', type: 'success' }));
+    }
+
     dispatch(setActiveView('search'));
     dispatch(searchYouTube({ query: trimmed, minDurationSec }));
   };

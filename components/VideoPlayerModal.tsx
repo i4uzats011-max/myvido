@@ -21,6 +21,7 @@ import {
   Minimize,
   Radio,
   Heart,
+  Zap,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -76,6 +77,10 @@ export default function VideoPlayerModal() {
     if (playerMode === 'ad-free') {
       // Invidious ad-free stream mirror
       return `https://yewtu.be/embed/${videoId}?autoplay=1`;
+    }
+    if (playerMode === 'yout-ube') {
+      // yout-ube.com style zero-ads loop embed with parameter suppression
+      return `https://www.youtube-nocookie.com/embed/${videoId}?playlist=${videoId}&autoplay=1&iv_load_policy=3&loop=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
     }
     // High-performance Clean YouTube Privacy Embed (Plays 100% of videos reliably with ad suppression)
     return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1`;
@@ -175,6 +180,18 @@ export default function VideoPlayerModal() {
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Clean Player</span>
+            </button>
+            <button
+              onClick={() => dispatch(setPlayerMode('yout-ube'))}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                playerMode === 'yout-ube'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+              title="Ad-Free yout-ube.com looped embed"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>yout-ube Mode</span>
             </button>
             <button
               onClick={() => dispatch(setPlayerMode('ad-free'))}
@@ -395,6 +412,17 @@ export default function VideoPlayerModal() {
                 <Share2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Share</span>
               </button>
+
+              <a
+                href={`https://www.yout-ube.com/watch?v=${videoId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/50 text-amber-300 text-xs sm:text-sm font-semibold transition"
+                title="Open in yout-ube.com (Ad-Free Hyphen Link)"
+              >
+                <Zap className="w-4 h-4 text-amber-400" />
+                <span>Ad-Free yout-ube.com ↗</span>
+              </a>
 
               <a
                 href={`https://www.youtube.com/watch?v=${videoId}`}

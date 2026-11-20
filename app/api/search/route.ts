@@ -4,6 +4,7 @@ import {
   formatDuration,
   formatViewCount,
   isReelOrShort,
+  extractYouTubeVideoId,
   YouTubeVideoItem,
 } from '@/lib/youtube';
 
@@ -73,45 +74,55 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Step 1: Query YouTube Search API (Optimized payload with fields filter for speed)
-    const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
-    searchUrl.searchParams.set('part', 'id');
-    searchUrl.searchParams.set('q', query);
-    searchUrl.searchParams.set('type', 'video');
-    searchUrl.searchParams.set('maxResults', '35'); // Fast batch
-    searchUrl.searchParams.set('fields', 'nextPageToken,items(id/videoId)');
-    if (pageToken) {
-      searchUrl.searchParams.set('pageToken', pageToken);
+    const directVideoId = extractYouTubeVideoId(query);
+    let videoIds = '';
+    let nextPageTokenResponse: string | null = null;
+
+    if (directVideoId) {
+      // Direct YouTube or yout-ube URL/ID entered: skip search step and fetch video directly
+      videoIds = directVideoId;
+    } else {
+      // Step 1: Query YouTube Search API (Optimized payload with fields filter for speed)
+      const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+      searchUrl.searchParams.set('part', 'id');
+      searchUrl.searchParams.set('q', query);
+      searchUrl.searchParams.set('type', 'video');
+      searchUrl.searchParams.set('maxResults', '35'); // Fast batch
+      searchUrl.searchParams.set('fields', 'nextPageToken,items(id/videoId)');
+      if (pageToken) {
+        searchUrl.searchParams.set('pageToken', pageToken);
+      }
+      searchUrl.searchParams.set('key', apiKey);
+
+      const searchRes = await fetch(searchUrl.toString(), {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        next: { revalidate: 600 },
+      });
+
+      if (!searchRes.ok) {
+        const errData = await searchRes.json().catch(() => ({}));
+        return NextResponse.json(
+          { error: errData.error?.message || 'YouTube search failed' },
+          { status: searchRes.status }
+        );
+      }
+
+      const searchData = await searchRes.json();
+      nextPageTokenResponse = searchData.nextPageToken || null;
+      const rawItems = searchData.items || [];
+      videoIds = rawItems
+        .map((item: { id?: { videoId?: string } }) => item.id?.videoId)
+        .filter(Boolean)
+        .join(',');
     }
-    searchUrl.searchParams.set('key', apiKey);
-
-    const searchRes = await fetch(searchUrl.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-      next: { revalidate: 600 },
-    });
-
-    if (!searchRes.ok) {
-      const errData = await searchRes.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errData.error?.message || 'YouTube search failed' },
-        { status: searchRes.status }
-      );
-    }
-
-    const searchData = await searchRes.json();
-    const rawItems = searchData.items || [];
-    const videoIds = rawItems
-      .map((item: { id?: { videoId?: string } }) => item.id?.videoId)
-      .filter(Boolean)
-      .join(',');
 
     if (!videoIds) {
       const emptyResult = {
         items: [],
-        nextPageToken: searchData.nextPageToken || null,
+        nextPageToken: nextPageTokenResponse,
         filteredCount: 0,
         totalReceived: 0,
       };
@@ -202,11 +213,28 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // If directVideoId was entered and not returned (e.g. strict filtering or API quota), fallback to direct item
+    if (directVideoId && cleanVideos.length === 0) {
+      cleanVideos.push({
+        id: directVideoId,
+        title: `YouTube Video (${directVideoId})`,
+        description: `Ad-free direct playback for YouTube link: ${query}`,
+        channelTitle: 'YouTube',
+        channelId: '',
+        thumbnailUrl: `https://i.ytimg.com/vi/${directVideoId}/hqdefault.jpg`,
+        duration: 'Direct Stream',
+        durationSec: 300,
+        viewCount: 'Ad-Free Play',
+        publishedAt: new Date().toISOString(),
+        isShortOrReel: false,
+      });
+    }
+
     const responseData = {
       items: cleanVideos,
-      nextPageToken: searchData.nextPageToken || null,
+      nextPageToken: nextPageTokenResponse,
       filteredCount,
-      totalReceived: rawItems.length,
+      totalReceived: directVideoId ? 1 : videoDetailsList.length,
     };
 
     // Store in memory cache

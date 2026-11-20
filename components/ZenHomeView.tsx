@@ -24,6 +24,7 @@ import {
   setClearHistoryModalOpen,
 } from '@/store/slices/uiSlice';
 import VideoCard from './VideoCard';
+import AdFreeConverter from './AdFreeConverter';
 import { clearAllHistory } from '@/store/slices/playerSlice';
 
 export default function ZenHomeView() {
@@ -283,6 +284,9 @@ export default function ZenHomeView() {
           </button>
         </div>
       </div>
+
+      {/* Instant Ad-Free Converter & Player Tool */}
+      <AdFreeConverter initialUrl="https://www.youtube.com/watch?v=-jDRvK4CCaE" />
 
       {/* Videos Grid or Zen Empty State */}
       {currentSavedVideos.length > 0 ? (

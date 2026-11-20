@@ -231,3 +231,65 @@ export function isReelOrShort(
 
   return false;
 }
+
+/**
+ * Extract YouTube video ID from any standard YouTube URL, short URL, embed, or yout-ube.com URL
+ */
+export function extractYouTubeVideoId(input: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+
+  // If already a clean 11-char video ID (e.g. -jDRvK4CCaE or dQw4w9WgXcQ)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Common patterns:
+  // 1. https://www.youtube.com/watch?v=...
+  // 2. https://www.yout-ube.com/watch?v=...
+  // 3. https://youtu.be/...
+  // 4. https://www.youtube.com/embed/...
+  // 5. https://www.youtube-nocookie.com/embed/...
+  // 6. https://www.youtube.com/shorts/...
+  const match = trimmed.match(
+    /(?:youtu\.be\/|yout-ube\.com\/(?:watch\?.*v=|embed\/)|youtube(?:-nocookie)?\.com\/(?:watch\?.*v=|embed\/|shorts\/|v\/))([a-zA-Z0-9_-]{11})/
+  );
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Fallback URL parser for query param ?v=
+  try {
+    const url = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    const v = url.searchParams.get('v');
+    if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) {
+      return v;
+    }
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const lastPart = pathParts[pathParts.length - 1];
+    if (lastPart && /^[a-zA-Z0-9_-]{11}$/.test(lastPart)) {
+      return lastPart;
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+/**
+ * Converts any standard YouTube link into an ad-free yout-ube.com link
+ */
+export function toAdFreeUrl(urlOrId: string): string {
+  const id = extractYouTubeVideoId(urlOrId) || urlOrId.trim();
+  return `https://www.yout-ube.com/watch?v=${id}`;
+}
+
+/**
+ * Converts any standard YouTube link into an ad-free privacy embed URL
+ */
+export function toAdFreeEmbedUrl(urlOrId: string): string {
+  const id = extractYouTubeVideoId(urlOrId) || urlOrId.trim();
+  return `https://www.youtube-nocookie.com/embed/${id}?playlist=${id}&autoplay=1&iv_load_policy=3&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
+}
+

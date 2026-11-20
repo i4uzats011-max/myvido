@@ -4,7 +4,7 @@ import { SavedVideoItem } from './savedVideosSlice';
 
 export type VideoPlayable = YouTubeVideoItem | SavedVideoItem;
 
-export type PlayerMode = 'ad-free' | 'nocookie';
+export type PlayerMode = 'ad-free' | 'nocookie' | 'yout-ube';
 
 interface HistoryItem {
   videoId: string;
