@@ -10,6 +10,8 @@ import ClearHistoryModal from '@/components/ClearHistoryModal';
 import ManageFoldersModal from '@/components/ManageFoldersModal';
 import ScreenTimeModal from '@/components/ScreenTimeModal';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import MiniFloatingPlayer from '@/components/MiniFloatingPlayer';
+import BackgroundAudioController from '@/components/BackgroundAudioController';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { clearToast } from '@/store/slices/uiSlice';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
@@ -45,8 +47,10 @@ export default function Home() {
       {/* Mobile Bottom Navigation for iPhone & Safari Mobile */}
       <MobileBottomNav />
 
-      {/* Interactive Modals */}
+      {/* Interactive Modals & Mini Player */}
       <VideoPlayerModal />
+      <MiniFloatingPlayer />
+      <BackgroundAudioController />
       <SaveToFolderModal />
       <ClearHistoryModal />
       <ManageFoldersModal />

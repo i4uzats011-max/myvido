@@ -15,6 +15,11 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  Headphones,
+  Sun,
+  SunMedium,
+  Minimize,
+  Radio,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -22,6 +27,9 @@ import {
   setPlayerMode,
   toggleTheaterMode,
   setVideoNotes,
+  toggleMiniPlayer,
+  toggleBackgroundAudioMode,
+  toggleWakeLock,
   PlayerMode,
 } from '@/store/slices/playerSlice';
 import { openSaveModal, showToast } from '@/store/slices/uiSlice';
@@ -30,9 +38,16 @@ import { formatRelativeDate } from '@/lib/youtube';
 
 export default function VideoPlayerModal() {
   const dispatch = useAppDispatch();
-  const { currentVideo, isOpen, playerMode, isTheaterMode, notes: initialNotes } = useAppSelector(
-    (state) => state.player
-  );
+  const {
+    currentVideo,
+    isOpen,
+    isMiniPlayer,
+    isBackgroundAudioMode,
+    isWakeLockActive,
+    playerMode,
+    isTheaterMode,
+    notes: initialNotes,
+  } = useAppSelector((state) => state.player);
   const { items: savedVideos } = useAppSelector((state) => state.savedVideos);
   const { items: folders } = useAppSelector((state) => state.folders);
 
@@ -48,7 +63,8 @@ export default function VideoPlayerModal() {
     }
   }, [currentVideo, savedVideos]);
 
-  if (!isOpen || !currentVideo) return null;
+  // When minimized, full modal is hidden and MiniFloatingPlayer renders
+  if (!isOpen || !currentVideo || isMiniPlayer) return null;
 
   const videoId = 'id' in currentVideo ? currentVideo.id : currentVideo.videoId;
   const isSaved = savedVideos.some((v) => v.videoId === videoId);
@@ -72,7 +88,6 @@ export default function VideoPlayerModal() {
       await dispatch(updateSavedVideo({ videoId, notes }));
       dispatch(showToast({ message: 'Notes saved to your folder!', type: 'success' }));
     } else {
-      // Prompt user to save to folder first
       dispatch(
         openSaveModal({
           id: videoId,
@@ -100,7 +115,6 @@ export default function VideoPlayerModal() {
     }
   };
 
-  // Folder names
   const folderNames = (savedItem?.folderIds || [])
     .map((slug) => folders.find((f) => f.slug === slug)?.name)
     .filter(Boolean);
@@ -108,8 +122,8 @@ export default function VideoPlayerModal() {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md flex flex-col items-center justify-start p-0 sm:p-4 md:p-6 animate-fade-in safe-top safe-bottom">
       {/* Top Bar with Controls */}
-      <div className="w-full max-w-6xl flex items-center justify-between px-3 py-2 sm:py-3 bg-[#121212]/90 border-b sm:border border-[#2b2b2b] sm:rounded-t-2xl">
-        <div className="flex items-center gap-2 sm:gap-3">
+      <div className="w-full max-w-6xl flex items-center justify-between px-3 py-2 sm:py-3 bg-[#121212]/95 border-b sm:border border-[#2b2b2b] sm:rounded-t-2xl">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Ad-Block Toggle Selector */}
           <div className="flex items-center bg-[#1f1f1f] p-1 rounded-xl border border-[#333333]">
             <button
@@ -121,7 +135,7 @@ export default function VideoPlayerModal() {
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Clean Player (100% Playable)</span>
+              <span>Clean Player</span>
             </button>
             <button
               onClick={() => dispatch(setPlayerMode('ad-free'))}
@@ -136,17 +150,60 @@ export default function VideoPlayerModal() {
             </button>
           </div>
 
-          <span className="hidden lg:inline text-xs text-neutral-400">
-            {playerMode === 'nocookie' ? '🔒 Ad & tracking suppression active' : '🛡️ Zero Ads via Invidious Stream'}
-          </span>
+          {/* Screen-Off Background Audio Mode Toggle */}
+          <button
+            onClick={() => {
+              dispatch(toggleBackgroundAudioMode());
+              dispatch(
+                showToast({
+                  message: !isBackgroundAudioMode
+                    ? 'Screen-Off Audio Enabled! Audio will continue when screen is locked.'
+                    : 'Screen-Off Audio disabled.',
+                  type: 'info',
+                })
+              );
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold border transition ${
+              isBackgroundAudioMode
+                ? 'bg-amber-950/60 border-amber-500/60 text-amber-300'
+                : 'bg-[#1e1e1e] border-[#333333] text-neutral-400 hover:text-white'
+            }`}
+            title="Keep playing audio even when screen is locked or turned off"
+          >
+            <Headphones className={`w-3.5 h-3.5 ${isBackgroundAudioMode ? 'animate-pulse text-amber-400' : ''}`} />
+            <span>{isBackgroundAudioMode ? 'Screen-Off: ON 🎧' : 'Screen-Off Mode'}</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Keep Screen Awake (WakeLock) Toggle */}
+          <button
+            onClick={() => dispatch(toggleWakeLock())}
+            title={isWakeLockActive ? 'Screen will stay awake' : 'Enable Keep Screen Awake'}
+            className={`p-2 rounded-xl transition ${
+              isWakeLockActive
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'text-neutral-400 hover:text-white hover:bg-[#252525]'
+            }`}
+          >
+            <Sun className="w-4 h-4" />
+          </button>
+
+          {/* Minimize to Background Floating Player */}
+          <button
+            onClick={() => dispatch(toggleMiniPlayer())}
+            title="Minimize to floating background player"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-neutral-300 hover:text-white hover:bg-[#252525] rounded-xl transition text-xs font-medium"
+          >
+            <Minimize className="w-4 h-4" />
+            <span className="hidden sm:inline">Background</span>
+          </button>
+
           {/* Theater Mode Toggle */}
           <button
             onClick={() => dispatch(toggleTheaterMode())}
             title={isTheaterMode ? 'Exit theater mode' : 'Theater mode'}
-            className="hidden sm:p-2 text-neutral-400 hover:text-white hover:bg-[#252525] rounded-xl transition"
+            className="hidden sm:block p-2 text-neutral-400 hover:text-white hover:bg-[#252525] rounded-xl transition"
           >
             {isTheaterMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -181,6 +238,24 @@ export default function VideoPlayerModal() {
             className="w-full h-full border-0"
           />
         </div>
+
+        {/* Screen-Off Audio Mode Banner */}
+        {isBackgroundAudioMode && (
+          <div className="bg-amber-950/40 border-b border-amber-800/40 px-4 py-2.5 flex items-center justify-between text-xs text-amber-300">
+            <div className="flex items-center gap-2">
+              <Headphones className="w-4 h-4 animate-pulse text-amber-400" />
+              <span>
+                <strong>Screen-Off Audio Mode Active:</strong> You can lock your mobile screen or turn it off, and the audio will continue playing in the background with lock screen controls.
+              </span>
+            </div>
+            <button
+              onClick={() => dispatch(toggleMiniPlayer())}
+              className="text-[11px] underline hover:text-white ml-2 flex-shrink-0"
+            >
+              Minimize &amp; Browse
+            </button>
+          </div>
+        )}
 
         {/* Video Information & Actions Bar */}
         <div className="p-4 sm:p-6 space-y-4">
@@ -237,6 +312,15 @@ export default function VideoPlayerModal() {
               </button>
 
               <button
+                onClick={() => dispatch(toggleMiniPlayer())}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white text-xs sm:text-sm transition"
+                title="Keep playing while searching or browsing folders"
+              >
+                <Minimize className="w-4 h-4" />
+                <span>Background Float</span>
+              </button>
+
+              <button
                 onClick={handleShare}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white text-xs sm:text-sm transition"
               >
@@ -276,7 +360,7 @@ export default function VideoPlayerModal() {
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                My Notes & Timestamps (Education / Meditation Key Takeaways)
+                My Notes &amp; Timestamps (Education / Meditation Key Takeaways)
               </label>
               <button
                 onClick={handleSaveNotes}

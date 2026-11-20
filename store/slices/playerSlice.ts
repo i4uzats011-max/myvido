@@ -18,7 +18,11 @@ interface HistoryItem {
 interface PlayerState {
   currentVideo: VideoPlayable | null;
   isOpen: boolean;
-  playerMode: PlayerMode; // 'ad-free' = Invidious/Piped (No ads), 'nocookie' = YouTube Privacy
+  isMiniPlayer: boolean; // Background floating player when minimized
+  isPlaying: boolean;
+  isBackgroundAudioMode: boolean; // Screen-off / lock-screen continuous audio playback
+  isWakeLockActive: boolean;
+  playerMode: PlayerMode;
   isTheaterMode: boolean;
   notes: string;
   history: HistoryItem[];
@@ -27,7 +31,11 @@ interface PlayerState {
 const initialState: PlayerState = {
   currentVideo: null,
   isOpen: false,
-  playerMode: 'nocookie', // Default to 100% reliable Clean Privacy Player
+  isMiniPlayer: false,
+  isPlaying: true,
+  isBackgroundAudioMode: false,
+  isWakeLockActive: false,
+  playerMode: 'nocookie',
   isTheaterMode: false,
   notes: '',
   history: [],
@@ -40,6 +48,8 @@ const playerSlice = createSlice({
     playVideo: (state, action: PayloadAction<VideoPlayable>) => {
       state.currentVideo = action.payload;
       state.isOpen = true;
+      state.isMiniPlayer = false;
+      state.isPlaying = true;
       const v = action.payload;
       const videoId = 'id' in v ? v.id : v.videoId;
       state.notes = 'notes' in v ? v.notes : '';
@@ -60,12 +70,10 @@ const playerSlice = createSlice({
       }
       state.history.unshift(newHistoryItem);
 
-      // Keep max 50 items in history
       if (state.history.length > 50) {
         state.history.pop();
       }
 
-      // Save history to localStorage if in browser
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('zen_watch_history', JSON.stringify(state.history));
@@ -74,7 +82,28 @@ const playerSlice = createSlice({
     },
     closePlayer: (state) => {
       state.isOpen = false;
+      state.isMiniPlayer = false;
       state.currentVideo = null;
+      state.isPlaying = false;
+      state.isBackgroundAudioMode = false;
+    },
+    toggleMiniPlayer: (state) => {
+      state.isMiniPlayer = !state.isMiniPlayer;
+    },
+    setMiniPlayer: (state, action: PayloadAction<boolean>) => {
+      state.isMiniPlayer = action.payload;
+    },
+    setIsPlaying: (state, action: PayloadAction<boolean>) => {
+      state.isPlaying = action.payload;
+    },
+    toggleBackgroundAudioMode: (state) => {
+      state.isBackgroundAudioMode = !state.isBackgroundAudioMode;
+    },
+    setBackgroundAudioMode: (state, action: PayloadAction<boolean>) => {
+      state.isBackgroundAudioMode = action.payload;
+    },
+    toggleWakeLock: (state) => {
+      state.isWakeLockActive = !state.isWakeLockActive;
     },
     setPlayerMode: (state, action: PayloadAction<PlayerMode>) => {
       state.playerMode = action.payload;
@@ -103,6 +132,12 @@ const playerSlice = createSlice({
 export const {
   playVideo,
   closePlayer,
+  toggleMiniPlayer,
+  setMiniPlayer,
+  setIsPlaying,
+  toggleBackgroundAudioMode,
+  setBackgroundAudioMode,
+  toggleWakeLock,
   setPlayerMode,
   toggleTheaterMode,
   setVideoNotes,

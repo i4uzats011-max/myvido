@@ -31,6 +31,8 @@ function cleanExpiredCache() {
   }
 }
 
+const DEFAULT_YOUTUBE_API_KEY = 'AIzaSyCVEsCgQOAyyCpxvQ_O_cRBElQ1fXN-mSg';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -38,7 +40,10 @@ export async function GET(request: NextRequest) {
     const query = rawQuery.trim();
     const pageToken = searchParams.get('pageToken') || '';
     const minDurationSec = parseInt(searchParams.get('minDuration') || '70', 10);
-    const apiKey = process.env.YOUTUBE_API_KEY || searchParams.get('apiKey');
+    const apiKey =
+      process.env.YOUTUBE_API_KEY ||
+      searchParams.get('apiKey') ||
+      DEFAULT_YOUTUBE_API_KEY;
 
     if (!query) {
       return NextResponse.json({ items: [], nextPageToken: null, filteredCount: 0 });
@@ -81,6 +86,10 @@ export async function GET(request: NextRequest) {
     searchUrl.searchParams.set('key', apiKey);
 
     const searchRes = await fetch(searchUrl.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
       next: { revalidate: 600 },
     });
 
@@ -121,6 +130,10 @@ export async function GET(request: NextRequest) {
     videosUrl.searchParams.set('key', apiKey);
 
     const videosRes = await fetch(videosUrl.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
       next: { revalidate: 900 },
     });
 
