@@ -42,7 +42,7 @@ const initialState: SearchState = {
   hasSearched: false,
   error: null,
   filteredReelsCount: 0,
-  minDurationSec: 150,
+  minDurationSec: 135, // 2 minutes 15 seconds
   nextPageToken: null,
   suggestions: [],
   isSuggestionsLoading: false,
@@ -52,7 +52,7 @@ const initialState: SearchState = {
 export const searchYouTube = createAsyncThunk(
   'search/searchYouTube',
   async (
-    { query, minDurationSec = 150 }: { query: string; minDurationSec?: number },
+    { query, minDurationSec = 135 }: { query: string; minDurationSec?: number },
     { rejectWithValue, dispatch }
   ) => {
     try {
@@ -67,9 +67,10 @@ export const searchYouTube = createAsyncThunk(
 
       dispatch(consumeQuota(100));
 
+      const videosList = (data.videos || data.items || []) as YouTubeVideoItem[];
       return {
-        videos: data.videos as YouTubeVideoItem[],
-        filteredReelsCount: data.filteredReelsCount || 0,
+        videos: videosList,
+        filteredReelsCount: data.filteredReelsCount ?? data.filteredCount ?? 0,
         nextPageToken: data.nextPageToken || null,
       };
     } catch {
@@ -81,7 +82,7 @@ export const searchYouTube = createAsyncThunk(
 export const loadMoreYouTube = createAsyncThunk(
   'search/loadMoreYouTube',
   async (
-    { query, minDurationSec = 150, pageToken }: { query: string; minDurationSec?: number; pageToken?: string },
+    { query, minDurationSec = 135, pageToken }: { query: string; minDurationSec?: number; pageToken?: string },
     { rejectWithValue, dispatch }
   ) => {
     try {
@@ -96,9 +97,11 @@ export const loadMoreYouTube = createAsyncThunk(
 
       dispatch(consumeQuota(100));
 
+      const videosList = (data.videos || data.items || []) as YouTubeVideoItem[];
       return {
-        videos: data.videos as YouTubeVideoItem[],
-        filteredReelsCount: data.filteredReelsCount || 0,
+        videos: videosList,
+        filteredReelsCount: data.filteredReelsCount ?? data.filteredCount ?? 0,
+        nextPageToken: data.nextPageToken || null,
       };
     } catch {
       return rejectWithValue('Network error occurred while fetching more videos');
@@ -166,8 +169,16 @@ const searchSlice = createSlice({
         localStorage.removeItem('zen_search_history');
       }
     },
+    removeSearchHistoryItem: (state, action: PayloadAction<string>) => {
+      state.searchHistory = state.searchHistory.filter((q) => q !== action.payload);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('zen_search_history', JSON.stringify(state.searchHistory));
+        } catch {}
+      }
+    },
     resetSearchPreferences: (state) => {
-      state.minDurationSec = 150;
+      state.minDurationSec = 135;
       state.searchHistory = [];
       if (typeof window !== 'undefined') {
         localStorage.removeItem('zen_search_min_duration');
@@ -193,7 +204,7 @@ const searchSlice = createSlice({
       }
     },
     loadSearchHistoryFromStorage: (state, action: PayloadAction<string[]>) => {
-      state.searchHistory = action.payload;
+      state.searchHistory = Array.isArray(action.payload) ? action.payload : [];
     },
     loadQuotaFromStorage: (state, action: PayloadAction<typeof initialQuota>) => {
       const today = getTodayDateStr();
@@ -220,23 +231,25 @@ const searchSlice = createSlice({
         state.isLoading = false;
         state.loading = false;
         state.hasSearched = true;
-        state.results = action.payload.videos;
-        state.filteredReelsCount = action.payload.filteredReelsCount;
-        state.nextPageToken = action.payload.nextPageToken;
+        state.results = Array.isArray(action.payload?.videos) ? action.payload.videos : [];
+        state.filteredReelsCount = action.payload?.filteredReelsCount || 0;
+        state.nextPageToken = action.payload?.nextPageToken || null;
       })
       .addCase(searchYouTube.rejected, (state, action) => {
         state.isLoading = false;
         state.loading = false;
         state.hasSearched = true;
-        state.error = action.payload as string;
+        state.error = (action.payload as string) || 'Search failed';
       });
 
     builder.addCase(loadMoreYouTube.fulfilled, (state, action) => {
-      state.results = [...state.results, ...action.payload.videos];
+      const moreVideos = Array.isArray(action.payload?.videos) ? action.payload.videos : [];
+      state.results = [...(state.results || []), ...moreVideos];
+      state.nextPageToken = action.payload?.nextPageToken || null;
     });
 
     builder.addCase(fetchAutoSuggestions.fulfilled, (state, action) => {
-      state.suggestions = action.payload;
+      state.suggestions = Array.isArray(action.payload) ? action.payload : [];
     });
   },
 });
@@ -247,6 +260,7 @@ export const {
   setMinDurationSec,
   addSearchQueryToHistory,
   clearSearchHistory,
+  removeSearchHistoryItem,
   resetSearchPreferences,
   clearSuggestions,
   consumeQuota,

@@ -13,8 +13,10 @@ interface CacheEntry {
   timestamp: number;
   data: {
     items: YouTubeVideoItem[];
+    videos: YouTubeVideoItem[];
     nextPageToken: string | null;
     filteredCount: number;
+    filteredReelsCount: number;
     totalReceived: number;
   };
 }
@@ -40,14 +42,20 @@ export async function GET(request: NextRequest) {
     const rawQuery = searchParams.get('q') || '';
     const query = rawQuery.trim();
     const pageToken = searchParams.get('pageToken') || '';
-    const minDurationSec = parseInt(searchParams.get('minDuration') || '150', 10);
+    const minDurationSec = parseInt(searchParams.get('minDuration') || '135', 10);
     const apiKey =
       process.env.YOUTUBE_API_KEY ||
       searchParams.get('apiKey') ||
       DEFAULT_YOUTUBE_API_KEY;
 
     if (!query) {
-      return NextResponse.json({ items: [], nextPageToken: null, filteredCount: 0 });
+      return NextResponse.json({
+        items: [],
+        videos: [],
+        nextPageToken: null,
+        filteredCount: 0,
+        filteredReelsCount: 0,
+      });
     }
 
     if (!apiKey) {
@@ -122,8 +130,10 @@ export async function GET(request: NextRequest) {
     if (!videoIds) {
       const emptyResult = {
         items: [],
+        videos: [],
         nextPageToken: nextPageTokenResponse,
         filteredCount: 0,
+        filteredReelsCount: 0,
         totalReceived: 0,
       };
       memoryCache.set(cacheKey, { timestamp: now, data: emptyResult });
@@ -232,8 +242,10 @@ export async function GET(request: NextRequest) {
 
     const responseData = {
       items: cleanVideos,
+      videos: cleanVideos,
       nextPageToken: nextPageTokenResponse,
       filteredCount,
+      filteredReelsCount: filteredCount,
       totalReceived: directVideoId ? 1 : videoDetailsList.length,
     };
 

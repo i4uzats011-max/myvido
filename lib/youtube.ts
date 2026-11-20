@@ -190,9 +190,9 @@ export function isReelOrShort(
     title: string;
     description: string;
   },
-  minDurationSeconds: number = 150
+  minDurationSeconds: number = 135 // Default: 2 minutes 15 seconds
 ): boolean {
-  // If duration is 0 or less than the minimum duration threshold, block it!
+  // If duration is 0 or less than the minimum duration threshold (2m 15s), block it!
   if (typeof video.durationSec !== 'number' || video.durationSec < minDurationSeconds) {
     return true;
   }
@@ -222,6 +222,9 @@ export function isReelOrShort(
     'viral reel',
     'viral reels',
     'viral shorts',
+    '#shortvideo',
+    '#shortsfeed',
+    'shorts feed',
   ];
 
   for (const keyword of bannedKeywords) {
@@ -230,9 +233,9 @@ export function isReelOrShort(
     }
   }
 
-  // For videos under 5 mins (300s), check for standalone short/shorts/reel/reels in title
-  if (video.durationSec <= 300) {
-    if (/\b(short|shorts|reel|reels)\b/i.test(video.title)) {
+  // Check for standalone short/shorts/reel/reels in title or tags for any video under 10 minutes
+  if (video.durationSec <= 600) {
+    if (/\b(shorts?|reels?|ytshort|tiktok)\b/i.test(video.title)) {
       return true;
     }
   }

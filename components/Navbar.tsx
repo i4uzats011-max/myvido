@@ -33,6 +33,9 @@ import {
   setMinDurationSec,
   clearSearch,
   fetchAutoSuggestions,
+  addSearchQueryToHistory,
+  removeSearchHistoryItem,
+  clearSearchHistory,
 } from '@/store/slices/searchSlice';
 import {
   toggleSidebar,
@@ -50,7 +53,7 @@ import { extractYouTubeVideoId } from '@/lib/youtube';
 
 export default function Navbar() {
   const dispatch = useAppDispatch();
-  const { query, results, minDurationSec, suggestions, quota, isLoading } = useAppSelector(
+  const { query, results, minDurationSec, suggestions, searchHistory, quota, isLoading } = useAppSelector(
     (state) => state.search
   );
   const { playerMode } = useAppSelector((state) => state.player);
@@ -153,6 +156,7 @@ export default function Navbar() {
 
     setShowSuggestions(false);
     dispatch(setQuery(trimmed));
+    dispatch(addSearchQueryToHistory(trimmed));
 
     // Direct YouTube link playback
     const directVideoId = extractYouTubeVideoId(trimmed);
@@ -183,6 +187,7 @@ export default function Navbar() {
     setInputVal(text);
     setShowSuggestions(false);
     dispatch(setQuery(text));
+    dispatch(addSearchQueryToHistory(text));
     dispatch(setActiveView('search'));
     dispatch(searchYouTube({ query: text, minDurationSec }));
   };
@@ -334,29 +339,87 @@ export default function Navbar() {
             </button>
           </form>
 
-          {/* Autocomplete Suggestions Dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
+          {/* Autocomplete Suggestions & Search History Dropdown */}
+          {showSuggestions && ((searchHistory && searchHistory.length > 0) || (suggestions && suggestions.length > 0)) && (
             <div
               ref={suggestionsRef}
               className="absolute left-0 right-0 top-full mt-1.5 bg-[#1a1a1a] border border-[#333333] rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in"
             >
-              <div className="p-2 border-b border-[#282828] text-[11px] text-neutral-400 px-3 font-semibold flex items-center justify-between">
-                <span>Auto Suggestions</span>
-                <span className="text-[10px] text-red-400 font-bold">ANTI-SHORTS 🛡️</span>
-              </div>
-              <div className="max-h-60 overflow-y-auto py-1">
-                {suggestions.map((sug, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(sug)}
-                    className="w-full text-left px-4 py-2 hover:bg-[#262626] text-xs sm:text-sm text-neutral-200 flex items-center gap-2.5 transition"
-                  >
-                    <Search className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
-                    <span className="truncate">{sug}</span>
-                  </button>
-                ))}
-              </div>
+              {/* Recent Search History Section */}
+              {searchHistory && searchHistory.length > 0 && (
+                <div className="border-b border-[#282828] pb-1">
+                  <div className="p-2 text-[11px] text-neutral-400 px-3 font-semibold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-neutral-300">
+                      <History className="w-3.5 h-3.5 text-amber-400" />
+                      सर्च हिस्ट्री (Recent Searches)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => dispatch(clearSearchHistory())}
+                      className="text-[10px] text-neutral-400 hover:text-red-400 transition"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto py-0.5">
+                    {searchHistory.map((hist, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between px-3 py-1.5 hover:bg-[#262626] text-xs text-neutral-200 transition group"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInputVal(hist);
+                            setShowSuggestions(false);
+                            dispatch(setQuery(hist));
+                            dispatch(setActiveView('search'));
+                            dispatch(searchYouTube({ query: hist, minDurationSec }));
+                          }}
+                          className="flex items-center gap-2 flex-1 text-left truncate"
+                        >
+                          <History className="w-3 h-3 text-neutral-500 group-hover:text-amber-400 flex-shrink-0" />
+                          <span className="truncate">{hist}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch(removeSearchHistoryItem(hist));
+                          }}
+                          className="p-1 text-neutral-500 hover:text-red-400 opacity-60 group-hover:opacity-100 transition"
+                          title="Remove from history"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Suggestions Section */}
+              {suggestions && suggestions.length > 0 && (
+                <div>
+                  <div className="p-2 border-b border-[#282828] text-[11px] text-neutral-400 px-3 font-semibold flex items-center justify-between">
+                    <span>सुझाव (Suggestions)</span>
+                    <span className="text-[10px] text-red-400 font-bold">ANTI-REELS 🛡️</span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto py-1">
+                    {suggestions.map((sug, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(sug)}
+                        className="w-full text-left px-4 py-2 hover:bg-[#262626] text-xs sm:text-sm text-neutral-200 flex items-center gap-2.5 transition"
+                      >
+                        <Search className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
+                        <span className="truncate">{sug}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

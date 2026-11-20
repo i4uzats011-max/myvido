@@ -17,7 +17,7 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSavedVideos } from '@/store/slices/savedVideosSlice';
 import { fetchFolders, setActiveFolder } from '@/store/slices/foldersSlice';
-import { setQuery, searchYouTube, loadMoreYouTube, clearSearch, setMinDurationSec } from '@/store/slices/searchSlice';
+import { setQuery, searchYouTube, loadMoreYouTube, clearSearch, setMinDurationSec, addSearchQueryToHistory } from '@/store/slices/searchSlice';
 import {
   setManageFoldersOpen,
   setActiveView,
@@ -54,6 +54,7 @@ export default function ZenHomeView() {
   // Quick query handler
   const handleQuickSearch = (sampleQuery: string) => {
     dispatch(setQuery(sampleQuery));
+    dispatch(addSearchQueryToHistory(sampleQuery));
     dispatch(setActiveView('search'));
     dispatch(searchYouTube({ query: sampleQuery, minDurationSec }));
   };
@@ -156,9 +157,9 @@ export default function ZenHomeView() {
                 Duration Filter:
               </span>
               {[
-                { label: '> 2.5 mins (Default)', sec: 150 },
-                { label: '> 1 min', sec: 60 },
+                { label: '> 2m 15s (Default)', sec: 135 },
                 { label: '> 5 mins', sec: 300 },
+                { label: '> 10 mins', sec: 600 },
                 { label: '> 20 mins', sec: 1200 },
               ].map((item) => (
                 <button
@@ -193,7 +194,7 @@ export default function ZenHomeView() {
         </div>
 
         {/* Results Grid */}
-        {searchLoading && searchResults.length === 0 ? (
+        {searchLoading && (!searchResults || searchResults.length === 0) ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
               <div
@@ -208,7 +209,7 @@ export default function ZenHomeView() {
               </div>
             ))}
           </div>
-        ) : searchResults.length === 0 ? (
+        ) : !searchResults || searchResults.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-[#1c1c1c] flex items-center justify-center text-neutral-500 border border-[#2b2b2b]">
               <Search className="w-7 h-7" />
@@ -221,7 +222,7 @@ export default function ZenHomeView() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-              {searchResults.map((video) => (
+              {(searchResults || []).map((video) => (
                 <VideoCard key={video.id} video={video} />
               ))}
             </div>

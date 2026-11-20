@@ -137,8 +137,6 @@ export default function VideoPlayerModal() {
 
   // Embed URL generator based on selected Proxy Engine and Ad-Block Mode
   const getEmbedUrl = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-
     if (activeProxyEngine === 'yewtu') {
       return `https://yewtu.be/embed/${videoId}?autoplay=1`;
     }
@@ -149,13 +147,11 @@ export default function VideoPlayerModal() {
       return `https://invidious.nerdvpn.de/embed/${videoId}?autoplay=1`;
     }
 
-    if (playerMode === 'ad-free') {
-      return `https://yewtu.be/embed/${videoId}?autoplay=1`;
-    }
     if (playerMode === 'yout-ube') {
-      return `https://www.youtube-nocookie.com/embed/${videoId}?playlist=${videoId}&autoplay=1&iv_load_policy=3&loop=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${origin}`;
+      return `https://www.youtube-nocookie.com/embed/${videoId}?playlist=${videoId}&autoplay=1&loop=1&rel=0&modestbranding=1&playsinline=1`;
     }
-    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1&origin=${origin}`;
+    // High-reliability clean embed without cross-origin postMessage blocking
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
   };
 
   const handleSaveNotes = async () => {
