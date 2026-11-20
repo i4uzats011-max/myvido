@@ -3,6 +3,7 @@ import { YouTubeVideoItem } from '@/lib/youtube';
 import { SavedVideoItem } from './savedVideosSlice';
 
 type VideoModalTarget = YouTubeVideoItem | SavedVideoItem | null;
+export type ActiveAppView = 'tasks' | 'calendar' | 'ledger' | 'saved' | 'search' | 'history';
 
 interface UiState {
   isSidebarOpen: boolean;
@@ -11,8 +12,9 @@ interface UiState {
   saveModalVideo: VideoModalTarget;
   isManageFoldersOpen: boolean;
   isSettingsOpen: boolean;
+  isPasswordModalOpen: boolean;
   isClearHistoryModalOpen: boolean;
-  activeView: 'saved' | 'search' | 'history';
+  activeView: ActiveAppView;
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
 }
 
@@ -23,8 +25,9 @@ const initialState: UiState = {
   saveModalVideo: null,
   isManageFoldersOpen: false,
   isSettingsOpen: false,
+  isPasswordModalOpen: false,
   isClearHistoryModalOpen: false,
-  activeView: 'saved',
+  activeView: 'tasks', // Default view requested: Tasks open first upon login!
   toast: null,
 };
 
@@ -58,10 +61,13 @@ const uiSlice = createSlice({
     setSettingsOpen: (state, action: PayloadAction<boolean>) => {
       state.isSettingsOpen = action.payload;
     },
+    setPasswordModalOpen: (state, action: PayloadAction<boolean>) => {
+      state.isPasswordModalOpen = action.payload;
+    },
     setClearHistoryModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isClearHistoryModalOpen = action.payload;
     },
-    setActiveView: (state, action: PayloadAction<'saved' | 'search' | 'history'>) => {
+    setActiveView: (state, action: PayloadAction<ActiveAppView>) => {
       state.activeView = action.payload;
     },
     showToast: (
@@ -85,6 +91,7 @@ export const {
   closeSaveModal,
   setManageFoldersOpen,
   setSettingsOpen,
+  setPasswordModalOpen,
   setClearHistoryModalOpen,
   setActiveView,
   showToast,

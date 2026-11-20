@@ -17,11 +17,9 @@ import {
   Sparkles,
   Headphones,
   Sun,
-  SunMedium,
   Minimize,
-  Radio,
-  Heart,
   Zap,
+  Heart,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -65,8 +63,8 @@ export default function VideoPlayerModal() {
     }
   }, [currentVideo, savedVideos]);
 
-  // When minimized, full modal is hidden and MiniFloatingPlayer renders
-  if (!isOpen || !currentVideo || isMiniPlayer) return null;
+  // When player is not open or no video, unmount entirely
+  if (!isOpen || !currentVideo) return null;
 
   const videoId = 'id' in currentVideo ? currentVideo.id : currentVideo.videoId;
   const isSaved = savedVideos.some((v) => v.videoId === videoId);
@@ -75,14 +73,11 @@ export default function VideoPlayerModal() {
   // Embed URL generator based on selected Ad-Block Mode
   const getEmbedUrl = () => {
     if (playerMode === 'ad-free') {
-      // Invidious ad-free stream mirror
       return `https://yewtu.be/embed/${videoId}?autoplay=1`;
     }
     if (playerMode === 'yout-ube') {
-      // yout-ube.com style zero-ads loop embed with parameter suppression
       return `https://www.youtube-nocookie.com/embed/${videoId}?playlist=${videoId}&autoplay=1&iv_load_policy=3&loop=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
     }
-    // High-performance Clean YouTube Privacy Embed (Plays 100% of videos reliably with ad suppression)
     return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1`;
   };
 
@@ -164,346 +159,245 @@ export default function VideoPlayerModal() {
     .filter(Boolean);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md flex flex-col items-center justify-start p-0 sm:p-4 md:p-6 animate-fade-in safe-top safe-bottom">
-      {/* Top Bar with Controls */}
-      <div className="w-full max-w-6xl flex items-center justify-between px-3 py-2 sm:py-3 bg-[#121212]/95 border-b sm:border border-[#2b2b2b] sm:rounded-t-2xl">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {/* Ad-Block Toggle Selector */}
-          <div className="flex items-center bg-[#1f1f1f] p-1 rounded-xl border border-[#333333]">
-            <button
-              onClick={() => dispatch(setPlayerMode('nocookie'))}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                playerMode === 'nocookie'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Clean Player</span>
-            </button>
-            <button
-              onClick={() => dispatch(setPlayerMode('yout-ube'))}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                playerMode === 'yout-ube'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-              title="Ad-Free yout-ube.com looped embed"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>yout-ube Mode</span>
-            </button>
-            <button
-              onClick={() => dispatch(setPlayerMode('ad-free'))}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                playerMode === 'ad-free'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Ad-Free Proxy</span>
-            </button>
-          </div>
-
-          {/* Screen-Off Background Audio Mode Toggle */}
-          <button
-            onClick={() => {
-              dispatch(toggleBackgroundAudioMode());
-              dispatch(
-                showToast({
-                  message: !isBackgroundAudioMode
-                    ? 'Screen-Off Audio Enabled! Audio will continue when screen is locked.'
-                    : 'Screen-Off Audio disabled.',
-                  type: 'info',
-                })
-              );
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold border transition ${
-              isBackgroundAudioMode
-                ? 'bg-amber-950/60 border-amber-500/60 text-amber-300'
-                : 'bg-[#1e1e1e] border-[#333333] text-neutral-400 hover:text-white'
-            }`}
-            title="Keep playing audio even when screen is locked or turned off"
-          >
-            <Headphones className={`w-3.5 h-3.5 ${isBackgroundAudioMode ? 'animate-pulse text-amber-400' : ''}`} />
-            <span>{isBackgroundAudioMode ? 'Screen-Off: ON 🎧' : 'Screen-Off Mode'}</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Keep Screen Awake (WakeLock) Toggle */}
-          <button
-            onClick={() => dispatch(toggleWakeLock())}
-            title={isWakeLockActive ? 'Screen will stay awake' : 'Enable Keep Screen Awake'}
-            className={`p-2 rounded-xl transition ${
-              isWakeLockActive
-                ? 'bg-amber-500/20 text-amber-400'
-                : 'text-neutral-400 hover:text-white hover:bg-[#252525]'
-            }`}
-          >
-            <Sun className="w-4 h-4" />
-          </button>
-
-          {/* Minimize to Background Floating Player */}
-          <button
-            onClick={() => dispatch(toggleMiniPlayer())}
-            title="Minimize to floating background player"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-neutral-300 hover:text-white hover:bg-[#252525] rounded-xl transition text-xs font-medium"
-          >
-            <Minimize className="w-4 h-4" />
-            <span className="hidden sm:inline">Background</span>
-          </button>
-
-          {/* Theater Mode Toggle */}
-          <button
-            onClick={() => dispatch(toggleTheaterMode())}
-            title={isTheaterMode ? 'Exit theater mode' : 'Theater mode'}
-            className="hidden sm:block p-2 text-neutral-400 hover:text-white hover:bg-[#252525] rounded-xl transition"
-          >
-            {isTheaterMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-
-          {/* Close Player */}
-          <button
-            onClick={() => dispatch(closePlayer())}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-red-950/60 hover:text-red-400 rounded-xl transition active:scale-95"
-            aria-label="Close video player"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Container */}
+    <>
+      {/* 
+        CRITICAL FOR BACKGROUND PLAYBACK:
+        Single persistent iframe container that NEVER unmounts when minimizing.
+        If isMiniPlayer is active, transitions smoothly to a compact picture-in-picture floating box.
+      */}
       <div
-        className={`w-full bg-[#121212] sm:border-x sm:border-b border-[#2b2b2b] sm:rounded-b-2xl overflow-hidden transition-all duration-300 ${
-          isTheaterMode ? 'max-w-7xl' : 'max-w-6xl'
+        className={`transition-all duration-300 z-50 ${
+          isMiniPlayer
+            ? 'fixed bottom-20 md:bottom-6 right-3 sm:right-6 w-72 sm:w-80 aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-red-600/80 bg-black'
+            : 'fixed inset-0 overflow-y-auto bg-black/90 backdrop-blur-md flex flex-col items-center justify-start p-0 sm:p-4 md:p-6 safe-top safe-bottom'
         }`}
       >
-        {/* Responsive Aspect Ratio Video Player */}
-        <div className="relative aspect-video w-full bg-black">
-          <iframe
-            src={getEmbedUrl()}
-            title={currentVideo.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            playsInline
-            className="w-full h-full border-0"
-          />
-        </div>
-
-        {/* Screen-Off Audio Mode Banner */}
-        {isBackgroundAudioMode && (
-          <div className="bg-amber-950/40 border-b border-amber-800/40 px-4 py-2.5 flex items-center justify-between text-xs text-amber-300">
-            <div className="flex items-center gap-2">
-              <Headphones className="w-4 h-4 animate-pulse text-amber-400" />
-              <span>
-                <strong>Screen-Off Audio Mode Active:</strong> You can lock your mobile screen or turn it off, and the audio will continue playing in the background with lock screen controls.
-              </span>
-            </div>
+        {/* Floating Mini Controls Header when in Mini Player mode */}
+        {isMiniPlayer && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-black/80 backdrop-blur-md p-1 rounded-xl border border-neutral-700">
             <button
               onClick={() => dispatch(toggleMiniPlayer())}
-              className="text-[11px] underline hover:text-white ml-2 flex-shrink-0"
+              className="p-1 text-white hover:text-amber-400 transition"
+              title="Expand Player"
             >
-              Minimize &amp; Browse
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => dispatch(closePlayer())}
+              className="p-1 text-neutral-400 hover:text-red-400 transition"
+              title="Close Video"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* iPhone Safari Screen-Off Playback Guide */}
-        <div className="bg-[#181818] border-b border-[#262626] px-4 py-2.5 flex items-start gap-3 text-xs">
-          <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Headphones className="w-3.5 h-3.5" />
-          </div>
-          <div className="space-y-0.5">
-            <span className="font-bold text-amber-300 block text-[11px]">
-              📱 iPhone Safari Background &amp; Screen-Off Play:
-            </span>
-            <p className="text-neutral-300 text-[10px] sm:text-[11px] leading-relaxed">
-              When you lock your phone or switch apps, iOS pauses audio. Simply tap your iPhone lock screen or swipe down Control Center and press <strong>Play (▶)</strong> — audio will continue playing with the screen OFF!
-            </p>
-          </div>
-        </div>
-
-        {/* Video Information & Actions Bar */}
-        <div className="p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5 flex-1">
-              <h1 className="text-base sm:text-xl font-bold text-neutral-100 leading-snug">
-                {currentVideo.title}
-              </h1>
-
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-neutral-400">
-                <span className="font-semibold text-neutral-200 flex items-center gap-1">
-                  {currentVideo.channelTitle}
-                  <CheckCircle2 className="w-3.5 h-3.5 text-neutral-400" />
-                </span>
-                <span>•</span>
-                <span>{currentVideo.viewCount}</span>
-                <span>•</span>
-                <span>{formatRelativeDate(currentVideo.publishedAt)}</span>
-                <span>•</span>
-                <span className="px-2 py-0.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/40 text-[10px] font-bold">
-                  🛡️ 0 REELS GUARANTEE
-                </span>
+        {/* Modal Controls Header (When NOT Minimized) */}
+        {!isMiniPlayer && (
+          <div className="w-full max-w-6xl flex items-center justify-between px-3 py-2 sm:py-3 bg-[#121212]/95 border-b sm:border border-[#2b2b2b] sm:rounded-t-2xl">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <div className="flex items-center bg-[#1f1f1f] p-1 rounded-xl border border-[#333333]">
+                <button
+                  onClick={() => dispatch(setPlayerMode('nocookie'))}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                    playerMode === 'nocookie'
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Clean Player</span>
+                </button>
+                <button
+                  onClick={() => dispatch(setPlayerMode('yout-ube'))}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                    playerMode === 'yout-ube'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>yout-ube Mode</span>
+                </button>
+                <button
+                  onClick={() => dispatch(setPlayerMode('ad-free'))}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                    playerMode === 'ad-free'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Ad-Free Proxy</span>
+                </button>
               </div>
+
+              {/* Background Audio Mode */}
+              <button
+                onClick={() => {
+                  dispatch(toggleBackgroundAudioMode());
+                  dispatch(
+                    showToast({
+                      message: !isBackgroundAudioMode
+                        ? 'Screen-Off Audio Active! Continuous audio enabled.'
+                        : 'Screen-Off Audio disabled.',
+                      type: 'info',
+                    })
+                  );
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold border transition ${
+                  isBackgroundAudioMode
+                    ? 'bg-amber-950/60 border-amber-500/60 text-amber-300'
+                    : 'bg-[#1e1e1e] border-[#333333] text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Headphones className={`w-3.5 h-3.5 ${isBackgroundAudioMode ? 'animate-pulse text-amber-400' : ''}`} />
+                <span>{isBackgroundAudioMode ? 'Screen-Off: ON 🎧' : 'Screen-Off Mode'}</span>
+              </button>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Like / Favorite Button */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
-                onClick={handleToggleFavorite}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition active:scale-95 ${
-                  isFavorite
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-900/30'
-                    : 'bg-[#252525] hover:bg-[#333333] text-neutral-300 hover:text-white border border-[#383838]'
+                onClick={() => dispatch(toggleWakeLock())}
+                className={`p-2 rounded-xl transition ${
+                  isWakeLockActive ? 'bg-amber-500/20 text-amber-400' : 'text-neutral-400 hover:text-white'
                 }`}
-                title={isFavorite ? 'Unlike video' : 'Like and save video'}
+                title="Keep Screen Awake"
               >
-                <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : 'text-rose-400'}`} />
-                <span>{isFavorite ? 'Liked' : 'Like'}</span>
-              </button>
-
-              <button
-                onClick={() =>
-                  dispatch(
-                    openSaveModal({
-                      id: videoId,
-                      title: currentVideo.title,
-                      description: currentVideo.description || '',
-                      channelTitle: currentVideo.channelTitle,
-                      channelId: currentVideo.channelId || '',
-                      thumbnailUrl: currentVideo.thumbnailUrl,
-                      duration: currentVideo.duration,
-                      durationSec: currentVideo.durationSec,
-                      viewCount: currentVideo.viewCount,
-                      publishedAt: currentVideo.publishedAt,
-                      isShortOrReel: false,
-                    })
-                  )
-                }
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition active:scale-95 ${
-                  isSaved
-                    ? 'bg-red-600 text-white hover:bg-red-700 shadow-md shadow-red-900/30'
-                    : 'bg-[#252525] hover:bg-[#333333] text-white border border-[#383838]'
-                }`}
-              >
-                {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
-                <span>{isSaved ? 'Saved in Folder' : 'Save to Folder'}</span>
+                <Sun className="w-4 h-4" />
               </button>
 
               <button
                 onClick={() => dispatch(toggleMiniPlayer())}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white text-xs sm:text-sm transition"
-                title="Keep playing while searching or browsing folders"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-neutral-300 hover:text-white hover:bg-[#252525] rounded-xl transition text-xs font-medium"
               >
                 <Minimize className="w-4 h-4" />
-                <span>Background Float</span>
+                <span className="hidden sm:inline">Background</span>
               </button>
 
               <button
-                onClick={handleShare}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white text-xs sm:text-sm transition"
+                onClick={() => dispatch(closePlayer())}
+                className="p-2 text-neutral-400 hover:text-red-400 hover:bg-red-950/60 rounded-xl transition"
               >
-                <Share2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Share</span>
+                <X className="w-5 h-5" />
               </button>
-
-              <a
-                href={`https://www.yout-ube.com/watch?v=${videoId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/50 text-amber-300 text-xs sm:text-sm font-semibold transition"
-                title="Open in yout-ube.com (Ad-Free Hyphen Link)"
-              >
-                <Zap className="w-4 h-4 text-amber-400" />
-                <span>Ad-Free yout-ube.com ↗</span>
-              </a>
-
-              <a
-                href={`https://www.youtube.com/watch?v=${videoId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white transition"
-                title="Open on YouTube directly"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
             </div>
           </div>
+        )}
 
-          {/* Folder Tags */}
-          {folderNames.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap pt-2">
-              <span className="text-xs text-neutral-400">Folders:</span>
-              {folderNames.map((name, i) => (
-                <span
-                  key={i}
-                  className="px-2.5 py-1 rounded-lg bg-neutral-800 text-neutral-200 border border-neutral-700 text-xs font-medium"
-                >
-                  📁 {name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Personal Notes / Timestamps Editor */}
-          <div className="bg-[#181818] rounded-2xl p-4 border border-[#2b2b2b] space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                My Notes &amp; Timestamps (Education / Meditation Key Takeaways)
-              </label>
-              <button
-                onClick={handleSaveNotes}
-                disabled={isSavingNotes}
-                className="flex items-center gap-1.5 bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>{isSavingNotes ? 'Saving...' : 'Save Notes'}</span>
-              </button>
-            </div>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add your study notes, meditation mantras, code snippets, or key timestamps (e.g. 05:20 Important concept)..."
-              rows={3}
-              className="w-full bg-[#121212] text-neutral-200 placeholder-neutral-500 rounded-xl p-3 border border-[#2d2d2d] focus:border-red-500 focus:ring-1 focus:ring-red-500 text-sm outline-none resize-none transition"
+        {/* 
+          THE SINGLE PERSISTENT IFRAME:
+          Never unmounts or reloads across mini/maximized transitions
+        */}
+        <div
+          className={`w-full ${
+            isMiniPlayer
+              ? 'h-full aspect-video'
+              : `bg-[#121212] sm:border-x sm:border-b border-[#2b2b2b] sm:rounded-b-2xl overflow-hidden transition-all duration-300 ${
+                  isTheaterMode ? 'max-w-7xl' : 'max-w-6xl'
+                }`
+          }`}
+        >
+          <div className="relative aspect-video w-full bg-black">
+            <iframe
+              src={getEmbedUrl()}
+              title={currentVideo.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              playsInline
+              className="w-full h-full border-0"
             />
           </div>
 
-          {/* Video Description Accordion */}
-          {currentVideo.description && (
-            <div className="bg-[#181818] rounded-2xl p-4 border border-[#2b2b2b]">
-              <div
-                className={`text-xs text-neutral-300 leading-relaxed whitespace-pre-wrap transition-all ${
-                  showFullDescription ? '' : 'line-clamp-3'
-                }`}
-              >
-                {currentVideo.description}
+          {/* Video Information & Notes (Only visible when full modal) */}
+          {!isMiniPlayer && (
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5 flex-1">
+                  <h1 className="text-base sm:text-xl font-bold text-neutral-100 leading-snug">
+                    {currentVideo.title}
+                  </h1>
+
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-neutral-400">
+                    <span className="font-semibold text-neutral-200 flex items-center gap-1">
+                      {currentVideo.channelTitle}
+                      <CheckCircle2 className="w-3.5 h-3.5 text-neutral-400" />
+                    </span>
+                    <span>•</span>
+                    <span>{currentVideo.viewCount}</span>
+                    <span>•</span>
+                    <span>{formatRelativeDate(currentVideo.publishedAt)}</span>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/40 text-[10px] font-bold">
+                      🛡️ ZERO REELS GUARANTEE
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleToggleFavorite}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition active:scale-95 ${
+                      isFavorite
+                        ? 'bg-rose-600 text-white shadow-md'
+                        : 'bg-[#252525] hover:bg-[#333333] text-neutral-300 hover:text-white border border-[#383838]'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : 'text-rose-400'}`} />
+                    <span>{isFavorite ? 'Liked' : 'Like'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white text-xs sm:text-sm transition"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+
+                  <a
+                    href={`https://www.youtube.com/watch?v=${videoId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 rounded-xl bg-[#222222] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white transition"
+                    title="Open on YouTube"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
               </div>
-              <button
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="mt-2 text-xs font-semibold text-neutral-400 hover:text-white flex items-center gap-1"
-              >
-                {showFullDescription ? (
-                  <>
-                    Show less <ChevronUp className="w-3.5 h-3.5" />
-                  </>
-                ) : (
-                  <>
-                    Show full description <ChevronDown className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
+
+              {/* Personal Notes */}
+              <div className="bg-[#181818] rounded-2xl p-4 border border-[#2b2b2b] space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Video Study Notes &amp; Timestamps
+                  </label>
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={isSavingNotes}
+                    className="flex items-center gap-1.5 bg-neutral-700 hover:bg-neutral-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSavingNotes ? 'Saving...' : 'Save Notes'}</span>
+                  </button>
+                </div>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Key takeaways, formulas, meditation timestamps..."
+                  rows={2}
+                  className="w-full bg-[#121212] text-neutral-200 placeholder-neutral-500 rounded-xl p-3 border border-[#2d2d2d] focus:border-red-500 text-sm outline-none resize-none transition"
+                />
+              </div>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

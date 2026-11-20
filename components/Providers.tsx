@@ -4,8 +4,10 @@ import { useRef, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { makeStore, AppStore } from '@/store/store';
 import { loadHistoryFromStorage } from '@/store/slices/playerSlice';
-import { loadSearchHistoryFromStorage } from '@/store/slices/searchSlice';
+import { loadSearchHistoryFromStorage, setMinDurationSec, loadQuotaFromStorage } from '@/store/slices/searchSlice';
 import { loadScreenTimeFromStorage, incrementScreenTime } from '@/store/slices/screenTimeSlice';
+import { loadPriorityColorsFromStorage } from '@/store/slices/tasksSlice';
+import { checkAuth } from '@/store/slices/authSlice';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const storeRef = useRef<AppStore | null>(null);
@@ -15,7 +17,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && storeRef.current) {
-      // Hydrate local histories if present
+      // 1. Register PWA Service Worker for background caching & sync
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then(() => console.log('FocusTube PWA Service Worker Registered'))
+          .catch((err) => console.warn('SW registration warning:', err));
+      }
+
+      // 2. Hydrate local state
       try {
         const savedWatch = localStorage.getItem('zen_watch_history');
         if (savedWatch) {
@@ -29,16 +39,32 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         if (savedScreenTime) {
           storeRef.current.dispatch(loadScreenTimeFromStorage(JSON.parse(savedScreenTime)));
         }
+        const savedMinDuration = localStorage.getItem('zen_search_min_duration');
+        if (savedMinDuration) {
+          const parsed = parseInt(savedMinDuration, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            storeRef.current.dispatch(setMinDurationSec(parsed));
+          }
+        }
+        const savedColors = localStorage.getItem('focustube_priority_colors');
+        if (savedColors) {
+          storeRef.current.dispatch(loadPriorityColorsFromStorage(JSON.parse(savedColors)));
+        }
+        const savedQuota = localStorage.getItem('focustube_quota');
+        if (savedQuota) {
+          storeRef.current.dispatch(loadQuotaFromStorage(JSON.parse(savedQuota)));
+        }
       } catch (e) {
         console.error('Failed to parse localStorage:', e);
       }
 
-      // Active screen time tracking ticker:
-      // Ticks every second when the video player is active or the page is in focus
+      // Check auth session
+      storeRef.current.dispatch(checkAuth());
+
+      // Screen time tracking ticker
       const timer = setInterval(() => {
         if (!storeRef.current) return;
         const state = storeRef.current.getState();
-        // Track actively when a video is being played or watched
         if (state.player.isOpen && state.player.currentVideo) {
           const activeSlug = state.folders.activeFolderSlug;
           storeRef.current.dispatch(incrementScreenTime({ folderSlug: activeSlug }));

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const rawQuery = searchParams.get('q') || '';
     const query = rawQuery.trim();
     const pageToken = searchParams.get('pageToken') || '';
-    const minDurationSec = parseInt(searchParams.get('minDuration') || '70', 10);
+    const minDurationSec = parseInt(searchParams.get('minDuration') || '150', 10);
     const apiKey =
       process.env.YOUTUBE_API_KEY ||
       searchParams.get('apiKey') ||
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       searchUrl.searchParams.set('part', 'id');
       searchUrl.searchParams.set('q', query);
       searchUrl.searchParams.set('type', 'video');
-      searchUrl.searchParams.set('maxResults', '35'); // Fast batch
+      searchUrl.searchParams.set('maxResults', '40'); // Fast batch with buffer for anti-reels filtering
       searchUrl.searchParams.set('fields', 'nextPageToken,items(id/videoId)');
       if (pageToken) {
         searchUrl.searchParams.set('pageToken', pageToken);

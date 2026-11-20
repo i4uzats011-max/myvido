@@ -17,7 +17,7 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSavedVideos } from '@/store/slices/savedVideosSlice';
 import { fetchFolders, setActiveFolder } from '@/store/slices/foldersSlice';
-import { setQuery, searchYouTube, loadMoreYouTube, clearSearch } from '@/store/slices/searchSlice';
+import { setQuery, searchYouTube, loadMoreYouTube, clearSearch, setMinDurationSec } from '@/store/slices/searchSlice';
 import {
   setManageFoldersOpen,
   setActiveView,
@@ -134,8 +134,8 @@ export default function ZenHomeView() {
     return (
       <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
         {/* Search Results Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#252525] pb-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-[#252525] pb-4">
+          <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg sm:text-xl font-bold text-white">
                 Results for &quot;<span className="text-red-400">{query}</span>&quot;
@@ -145,9 +145,40 @@ export default function ZenHomeView() {
                 {filteredReelsCount} Reels &amp; Shorts Blocked
               </span>
             </div>
-            <p className="text-xs text-neutral-400 mt-1">
-              All results are guaranteed regular videos (over {minDurationSec}s). Zero reels, zero ads.
+            <p className="text-xs text-neutral-400">
+              All results are guaranteed regular videos (over {minDurationSec >= 60 ? `${(minDurationSec / 60).toFixed(1).replace('.0', '')}m` : `${minDurationSec}s`}). Zero reels, zero ads.
             </p>
+
+            {/* Quick Duration Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+              <span className="text-[11px] font-medium text-neutral-400 mr-1 flex items-center gap-1">
+                <Sliders className="w-3 h-3 text-red-500" />
+                Duration Filter:
+              </span>
+              {[
+                { label: '> 2.5 mins (Default)', sec: 150 },
+                { label: '> 1 min', sec: 60 },
+                { label: '> 5 mins', sec: 300 },
+                { label: '> 20 mins', sec: 1200 },
+              ].map((item) => (
+                <button
+                  key={item.sec}
+                  onClick={() => {
+                    dispatch(setMinDurationSec(item.sec));
+                    if (query) {
+                      dispatch(searchYouTube({ query, minDurationSec: item.sec }));
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition active:scale-95 ${
+                    minDurationSec === item.sec
+                      ? 'bg-red-600 text-white shadow-md shadow-red-900/40 ring-1 ring-red-400'
+                      : 'bg-[#1e1e1e] hover:bg-[#282828] text-neutral-300 hover:text-white border border-[#333333]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
@@ -155,7 +186,7 @@ export default function ZenHomeView() {
               dispatch(clearSearch());
               dispatch(setActiveView('saved'));
             }}
-            className="text-xs font-semibold text-neutral-400 hover:text-white flex items-center gap-1.5 self-start sm:self-auto bg-[#1e1e1e] px-3 py-1.5 rounded-xl border border-[#2e2e2e]"
+            className="text-xs font-semibold text-neutral-400 hover:text-white flex items-center gap-1.5 self-start sm:self-auto bg-[#1e1e1e] px-3 py-1.5 rounded-xl border border-[#2e2e2e] flex-shrink-0"
           >
             ← Back to Saved Folders
           </button>
@@ -354,7 +385,7 @@ export default function ZenHomeView() {
                 🚫 Zero Reels
               </span>
               <p className="text-[11px] text-neutral-400">
-                Shorts and vertical videos under 70s are strictly eliminated.
+                Shorts and vertical videos under 2.5 minutes are strictly eliminated by default (&gt;1 min option available).
               </p>
             </div>
             <div className="bg-[#161616] p-3.5 rounded-2xl border border-[#282828] space-y-1">

@@ -180,6 +180,9 @@ export function isContentAllowed(
 
 /**
  * STRICT Anti-Reels & Anti-Shorts Detection
+ * Default: Videos under 2.5 minutes (150s) are eliminated.
+ * If user selects >1 min filter, videos >= 60s are allowed ONLY IF they are NOT reels/shorts.
+ * All reels, shorts, TikToks, and short-form videos are strictly blocked regardless of duration.
  */
 export function isReelOrShort(
   video: {
@@ -187,9 +190,10 @@ export function isReelOrShort(
     title: string;
     description: string;
   },
-  minDurationSeconds: number = 70
+  minDurationSeconds: number = 150
 ): boolean {
-  if (video.durationSec < minDurationSeconds) {
+  // If duration is 0 or less than the minimum duration threshold, block it!
+  if (typeof video.durationSec !== 'number' || video.durationSec < minDurationSeconds) {
     return true;
   }
 
@@ -210,6 +214,14 @@ export function isReelOrShort(
     'yt shorts',
     'insta reels',
     'instagram reels',
+    'fb reels',
+    'facebook reels',
+    'reels video',
+    'short video',
+    'shorts video',
+    'viral reel',
+    'viral reels',
+    'viral shorts',
   ];
 
   for (const keyword of bannedKeywords) {
@@ -218,13 +230,9 @@ export function isReelOrShort(
     }
   }
 
-  if (video.durationSec <= 180) {
-    if (
-      /\bshort\b/i.test(video.title) ||
-      /\breel\b/i.test(video.title) ||
-      /\bshorts\b/i.test(video.title) ||
-      /\breels\b/i.test(video.title)
-    ) {
+  // For videos under 5 mins (300s), check for standalone short/shorts/reel/reels in title
+  if (video.durationSec <= 300) {
+    if (/\b(short|shorts|reel|reels)\b/i.test(video.title)) {
       return true;
     }
   }

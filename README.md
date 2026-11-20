@@ -7,7 +7,7 @@ A Zen-mode YouTube web application built with **Next.js 16**, **React 19**, **Re
 ## ✨ Key Features
 
 1. **🚫 100% Zero Reels & Shorts Guarantee**
-   - Automatically filters out all vertical videos and shorts (< 70s threshold + `#shorts` / `#reels` tag blocking).
+   - Automatically filters out all vertical videos and shorts (< 2.5 minutes / 150s default threshold + user option for > 1 min + `#shorts` / `#reels` tag blocking).
    - Shows a live badge displaying how many reels were blocked during each search.
 
 2. **🛡️ Built-in Ad-Block Playback Mode & Hyphen Link Converter (`yout-ube.com`)**

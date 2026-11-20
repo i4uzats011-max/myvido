@@ -4,55 +4,76 @@ import { YouTubeVideoItem } from '@/lib/youtube';
 interface SearchState {
   query: string;
   results: YouTubeVideoItem[];
-  nextPageToken: string | null;
-  filteredReelsCount: number;
-  totalFilteredTotal: number;
-  minDurationSec: number; // default 70s (> 1 min 10s) to block all shorts
   searchHistory: string[];
+  isLoading: boolean;
   loading: boolean;
   hasSearched: boolean;
   error: string | null;
+  filteredReelsCount: number;
+  minDurationSec: number;
+  nextPageToken?: string | null;
+  suggestions: string[];
+  isSuggestionsLoading: boolean;
+  quota: {
+    dailyLimit: number; // 10,000 units/day default
+    dailyUsed: number;
+    monthlyLimit: number; // 300,000 units/month
+    monthlyUsed: number;
+    lastResetDate: string;
+  };
 }
 
-const DEFAULT_MIN_DURATION = 70;
+const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+
+const initialQuota = {
+  dailyLimit: 10000,
+  dailyUsed: 120,
+  monthlyLimit: 300000,
+  monthlyUsed: 2450,
+  lastResetDate: getTodayDateStr(),
+};
 
 const initialState: SearchState = {
   query: '',
   results: [],
-  nextPageToken: null,
-  filteredReelsCount: 0,
-  totalFilteredTotal: 0,
-  minDurationSec: DEFAULT_MIN_DURATION,
   searchHistory: [],
+  isLoading: false,
   loading: false,
   hasSearched: false,
   error: null,
+  filteredReelsCount: 0,
+  minDurationSec: 150,
+  nextPageToken: null,
+  suggestions: [],
+  isSuggestionsLoading: false,
+  quota: initialQuota,
 };
 
 export const searchYouTube = createAsyncThunk(
   'search/searchYouTube',
   async (
-    payload: { query: string; minDurationSec?: number },
-    { rejectWithValue }
+    { query, minDurationSec = 150 }: { query: string; minDurationSec?: number },
+    { rejectWithValue, dispatch }
   ) => {
     try {
-      const { query, minDurationSec = 70 } = payload;
-      if (!query || query.trim() === '') {
-        return { items: [], nextPageToken: null, filteredCount: 0 };
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}&minDuration=${minDurationSec}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to search YouTube');
       }
 
-      const url = `/api/search?q=${encodeURIComponent(query)}&minDuration=${minDurationSec}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      dispatch(consumeQuota(100));
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Search failed');
-      }
-
-      return data;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error executing search';
-      return rejectWithValue(msg);
+      return {
+        videos: data.videos as YouTubeVideoItem[],
+        filteredReelsCount: data.filteredReelsCount || 0,
+        nextPageToken: data.nextPageToken || null,
+      };
+    } catch {
+      return rejectWithValue('Network error occurred while fetching videos');
     }
   }
 );
@@ -60,24 +81,52 @@ export const searchYouTube = createAsyncThunk(
 export const loadMoreYouTube = createAsyncThunk(
   'search/loadMoreYouTube',
   async (
-    payload: { query: string; pageToken: string; minDurationSec?: number },
-    { rejectWithValue }
+    { query, minDurationSec = 150, pageToken }: { query: string; minDurationSec?: number; pageToken?: string },
+    { rejectWithValue, dispatch }
   ) => {
     try {
-      const { query, pageToken, minDurationSec = 70 } = payload;
-      const url = `/api/search?q=${encodeURIComponent(query)}&pageToken=${pageToken}&minDuration=${minDurationSec}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}&minDuration=${minDurationSec}${pageToken ? `&pageToken=${pageToken}` : ''}`
+      );
+      const data = await response.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load more videos');
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to load more videos');
       }
 
-      return data;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error loading more';
-      return rejectWithValue(msg);
+      dispatch(consumeQuota(100));
+
+      return {
+        videos: data.videos as YouTubeVideoItem[],
+        filteredReelsCount: data.filteredReelsCount || 0,
+      };
+    } catch {
+      return rejectWithValue('Network error occurred while fetching more videos');
     }
+  }
+);
+
+export const fetchAutoSuggestions = createAsyncThunk(
+  'search/fetchAutoSuggestions',
+  async (query: string) => {
+    if (!query || query.trim().length < 2) return [];
+    try {
+      const res = await fetch(
+        `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(
+          query
+        )}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data[1]) ? (data[1] as string[]).slice(0, 8) : [];
+      }
+    } catch {}
+    return [
+      `${query} full documentary`,
+      `${query} lecture tutorial`,
+      `${query} meditation music`,
+      `${query} podcast full episode`,
+    ];
   }
 );
 
@@ -88,90 +137,121 @@ const searchSlice = createSlice({
     setQuery: (state, action: PayloadAction<string>) => {
       state.query = action.payload;
     },
+    clearSearch: (state) => {
+      state.query = '';
+      state.results = [];
+      state.error = null;
+      state.filteredReelsCount = 0;
+      state.suggestions = [];
+    },
     setMinDurationSec: (state, action: PayloadAction<number>) => {
       state.minDurationSec = action.payload;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zen_search_min_duration', action.payload.toString());
+      }
     },
     addSearchQueryToHistory: (state, action: PayloadAction<string>) => {
-      const q = action.payload.trim();
-      if (!q) return;
-      state.searchHistory = [q, ...state.searchHistory.filter((item) => item !== q)].slice(0, 20);
+      const clean = action.payload.trim();
+      if (!clean) return;
+      state.searchHistory = [clean, ...state.searchHistory.filter((q) => q !== clean)].slice(0, 20);
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('zen_search_history', JSON.stringify(state.searchHistory));
         } catch {}
       }
     },
-    loadSearchHistoryFromStorage: (state, action: PayloadAction<string[]>) => {
-      state.searchHistory = action.payload;
-    },
     clearSearchHistory: (state) => {
       state.searchHistory = [];
       if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem('zen_search_history');
-        } catch {}
+        localStorage.removeItem('zen_search_history');
       }
     },
     resetSearchPreferences: (state) => {
-      state.minDurationSec = DEFAULT_MIN_DURATION;
-      state.query = '';
-      state.results = [];
-      state.nextPageToken = null;
-      state.filteredReelsCount = 0;
-      state.hasSearched = false;
-      state.error = null;
+      state.minDurationSec = 150;
       state.searchHistory = [];
       if (typeof window !== 'undefined') {
+        localStorage.removeItem('zen_search_min_duration');
+        localStorage.removeItem('zen_search_history');
+      }
+    },
+    clearSuggestions: (state) => {
+      state.suggestions = [];
+    },
+    consumeQuota: (state, action: PayloadAction<number>) => {
+      const today = getTodayDateStr();
+      if (state.quota.lastResetDate !== today) {
+        state.quota.dailyUsed = 0;
+        state.quota.lastResetDate = today;
+      }
+      state.quota.dailyUsed += action.payload;
+      state.quota.monthlyUsed += action.payload;
+
+      if (typeof window !== 'undefined') {
         try {
-          localStorage.removeItem('zen_search_history');
-          localStorage.removeItem('zen_search_preferences');
+          localStorage.setItem('focustube_quota', JSON.stringify(state.quota));
         } catch {}
       }
     },
-    clearSearch: (state) => {
-      state.query = '';
-      state.results = [];
-      state.nextPageToken = null;
-      state.filteredReelsCount = 0;
-      state.hasSearched = false;
-      state.error = null;
+    loadSearchHistoryFromStorage: (state, action: PayloadAction<string[]>) => {
+      state.searchHistory = action.payload;
+    },
+    loadQuotaFromStorage: (state, action: PayloadAction<typeof initialQuota>) => {
+      const today = getTodayDateStr();
+      state.quota = {
+        ...initialQuota,
+        ...action.payload,
+      };
+      if (state.quota.lastResetDate !== today) {
+        state.quota.dailyUsed = 0;
+        state.quota.lastResetDate = today;
+      }
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(searchYouTube.pending, (state) => {
+        state.isLoading = true;
         state.loading = true;
+        state.hasSearched = true;
         state.error = null;
+        state.suggestions = [];
       })
       .addCase(searchYouTube.fulfilled, (state, action) => {
+        state.isLoading = false;
         state.loading = false;
-        state.results = action.payload.items || [];
-        state.nextPageToken = action.payload.nextPageToken || null;
-        state.filteredReelsCount = action.payload.filteredCount || 0;
-        state.totalFilteredTotal += action.payload.filteredCount || 0;
         state.hasSearched = true;
+        state.results = action.payload.videos;
+        state.filteredReelsCount = action.payload.filteredReelsCount;
+        state.nextPageToken = action.payload.nextPageToken;
       })
       .addCase(searchYouTube.rejected, (state, action) => {
+        state.isLoading = false;
         state.loading = false;
-        state.error = (action.payload as string) || 'Search failed';
-      })
-      .addCase(loadMoreYouTube.fulfilled, (state, action) => {
-        state.results = [...state.results, ...(action.payload.items || [])];
-        state.nextPageToken = action.payload.nextPageToken || null;
-        state.filteredReelsCount += action.payload.filteredCount || 0;
-        state.totalFilteredTotal += action.payload.filteredCount || 0;
+        state.hasSearched = true;
+        state.error = action.payload as string;
       });
+
+    builder.addCase(loadMoreYouTube.fulfilled, (state, action) => {
+      state.results = [...state.results, ...action.payload.videos];
+    });
+
+    builder.addCase(fetchAutoSuggestions.fulfilled, (state, action) => {
+      state.suggestions = action.payload;
+    });
   },
 });
 
 export const {
   setQuery,
+  clearSearch,
   setMinDurationSec,
   addSearchQueryToHistory,
-  loadSearchHistoryFromStorage,
   clearSearchHistory,
   resetSearchPreferences,
-  clearSearch,
+  clearSuggestions,
+  consumeQuota,
+  loadSearchHistoryFromStorage,
+  loadQuotaFromStorage,
 } = searchSlice.actions;
 
 export default searchSlice.reducer;

@@ -94,7 +94,7 @@ export default function ClearHistoryModal() {
             <ul className="list-disc list-inside space-y-1 text-neutral-400 pl-1 text-[11px]">
               <li>All past YouTube search history & autocomplete suggestions</li>
               <li>Recently watched video history</li>
-              <li>Filter preferences (reset to strict &gt;1m Anti-Reels filter)</li>
+              <li>Filter preferences (reset to default &gt;2.5m Anti-Reels filter)</li>
             </ul>
           </div>
 

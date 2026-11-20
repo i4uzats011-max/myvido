@@ -12,13 +12,25 @@ import ScreenTimeModal from '@/components/ScreenTimeModal';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import MiniFloatingPlayer from '@/components/MiniFloatingPlayer';
 import BackgroundAudioController from '@/components/BackgroundAudioController';
+import LoginScreen from '@/components/LoginScreen';
+import DailyTasksPanel from '@/components/DailyTasksPanel';
+import CalendarCompliancePanel from '@/components/CalendarCompliancePanel';
+import HisaabKitaabPanel from '@/components/HisaabKitaabPanel';
+import PasswordChangeModal from '@/components/PasswordChangeModal';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { clearToast } from '@/store/slices/uiSlice';
+import { checkAuth } from '@/store/slices/authSlice';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function Home() {
   const dispatch = useAppDispatch();
-  const { toast } = useAppSelector((state) => state.ui);
+  const { toast, activeView } = useAppSelector((state) => state.ui);
+  const { isAuthenticated, isLoading: isAuthLoading } = useAppSelector((state) => state.auth);
+
+  // Check auth session on startup
+  useEffect(() => {
+    dispatch(checkAuth());
+  }, [dispatch]);
 
   // Auto clear toast after 4 seconds
   useEffect(() => {
@@ -30,6 +42,11 @@ export default function Home() {
     }
   }, [toast, dispatch]);
 
+  // If not authenticated and done checking, render the dedicated Login Screen
+  if (!isAuthenticated && !isAuthLoading) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-[#0f0f0f] text-[#f1f1f1]">
       {/* Top Navbar */}
@@ -40,21 +57,26 @@ export default function Home() {
         <Sidebar />
 
         <main className="flex-1 pb-20 md:pb-8 overflow-y-auto">
-          <ZenHomeView />
+          {activeView === 'tasks' && <DailyTasksPanel />}
+          {activeView === 'calendar' && <CalendarCompliancePanel />}
+          {activeView === 'ledger' && <HisaabKitaabPanel />}
+          {(activeView === 'saved' || activeView === 'search' || activeView === 'history') && (
+            <ZenHomeView />
+          )}
         </main>
       </div>
 
       {/* Mobile Bottom Navigation for iPhone & Safari Mobile */}
       <MobileBottomNav />
 
-      {/* Interactive Modals & Mini Player */}
+      {/* Interactive Modals & Single Persistent Background Video Player */}
       <VideoPlayerModal />
-      <MiniFloatingPlayer />
       <BackgroundAudioController />
       <SaveToFolderModal />
       <ClearHistoryModal />
       <ManageFoldersModal />
       <ScreenTimeModal />
+      <PasswordChangeModal />
 
       {/* Floating Toast Notification */}
       {toast && (
