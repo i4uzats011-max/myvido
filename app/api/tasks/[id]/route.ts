@@ -16,8 +16,13 @@ export async function PUT(
     if (body.description !== undefined) updateFields.description = body.description;
     if (body.priority !== undefined) updateFields.priority = body.priority;
     if (body.date !== undefined) updateFields.date = body.date;
+    if (body.dueDate !== undefined) updateFields.dueDate = body.dueDate;
     if (body.isRoutine !== undefined) updateFields.isRoutine = body.isRoutine;
     if (body.routineFrequency !== undefined) updateFields.routineFrequency = body.routineFrequency;
+    if (body.personId !== undefined) updateFields.personId = body.personId;
+    if (body.personName !== undefined) updateFields.personName = body.personName;
+    if (body.amount !== undefined) updateFields.amount = Number(body.amount) || 0;
+    if (body.tax !== undefined) updateFields.tax = body.tax;
 
     if (body.completed !== undefined) {
       updateFields.completed = body.completed;

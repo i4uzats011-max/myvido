@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const dates = searchParams.get('dates');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const personId = searchParams.get('personId');
 
     const query: Record<string, unknown> = {};
 
@@ -20,6 +21,10 @@ export async function GET(request: NextRequest) {
       query.date = { $gte: startDate, $lte: endDate };
     } else if (date) {
       query.date = date;
+    }
+
+    if (personId) {
+      query.personId = personId;
     }
 
     const tasks = await Task.find(query).sort({ completed: 1, date: 1, createdAt: -1 }).lean();
@@ -35,7 +40,21 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { title, description, priority, date, dueDate, isRoutine, routineFrequency, customColor } = body;
+    const {
+      title,
+      description,
+      priority,
+      date,
+      dueDate,
+      isRoutine,
+      routineFrequency,
+      customColor,
+      personId,
+      personName,
+      amount,
+      tax,
+      sourceType,
+    } = body;
 
     if (!title || !date) {
       return NextResponse.json(
@@ -53,6 +72,11 @@ export async function POST(request: NextRequest) {
       dueDate: dueDate || date,
       isRoutine: isRoutine || false,
       routineFrequency: routineFrequency || null,
+      personId: personId || '',
+      personName: personName || '',
+      amount: Number(amount) || 0,
+      tax: tax || '',
+      sourceType: sourceType || 'manual',
     });
 
     return NextResponse.json({ task }, { status: 201 });

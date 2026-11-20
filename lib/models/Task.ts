@@ -21,6 +21,11 @@ export interface ITask extends Document {
   dueDate?: string;
   isRoutine: boolean;
   routineFrequency: 'daily' | 'weekly' | 'monthly' | null;
+  personId?: string;
+  personName?: string;
+  amount?: number;
+  tax?: string;
+  sourceType?: 'manual' | 'person_field' | 'ledger_due';
   createdAt: Date;
 }
 
@@ -77,6 +82,27 @@ const TaskSchema: Schema = new Schema({
     type: String,
     enum: ['daily', 'weekly', 'monthly'],
     default: null,
+  },
+  personId: {
+    type: String,
+    default: '',
+    index: true,
+  },
+  personName: {
+    type: String,
+    default: '',
+  },
+  amount: {
+    type: Number,
+    default: 0,
+  },
+  tax: {
+    type: String,
+    default: '',
+  },
+  sourceType: {
+    type: String,
+    default: 'manual',
   },
   createdAt: {
     type: Date,

@@ -13,6 +13,11 @@ export interface TaskItem {
   dueDate?: string;
   isRoutine?: boolean;
   routineFrequency?: 'daily' | 'weekly' | 'monthly' | null;
+  personId?: string;
+  personName?: string;
+  amount?: number;
+  tax?: string;
+  sourceType?: string;
   createdAt: string;
 }
 
@@ -48,6 +53,7 @@ interface TasksState {
   selectedDate: string; // YYYY-MM-DD
   priorityColors: PriorityColors;
   filterPriority: string | null;
+  filterPersonId: string | null;
   isLoading: boolean;
   error: string | null;
   complianceItems: Array<{
@@ -80,6 +86,7 @@ const initialState: TasksState = {
   selectedDate: getTodayString(),
   priorityColors: defaultPriorityColors,
   filterPriority: null,
+  filterPersonId: null,
   isLoading: false,
   error: null,
   complianceItems: [],
@@ -165,7 +172,9 @@ export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
   async (id: string, { rejectWithValue }) => {
     try {
-      const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+      });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error);
       return id;
@@ -184,7 +193,7 @@ export const fetchComplianceAndPrayers = createAsyncThunk(
       if (!res.ok) return rejectWithValue(data.error);
       return data;
     } catch {
-      return rejectWithValue('Failed to load compliances and prayers');
+      return rejectWithValue('Failed to load compliance and prayer timings');
     }
   }
 );
@@ -203,19 +212,29 @@ const tasksSlice = createSlice({
       state.priorityColors[action.payload.priority] = action.payload.color;
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem('focustube_priority_colors', JSON.stringify(state.priorityColors));
+          localStorage.setItem('zen_priority_colors', JSON.stringify(state.priorityColors));
         } catch {}
       }
     },
-    loadPriorityColorsFromStorage: (state, action: PayloadAction<PriorityColors>) => {
-      state.priorityColors = { ...defaultPriorityColors, ...action.payload };
+    loadPriorityColorsFromStorage: (state) => {
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem('zen_priority_colors');
+          if (saved) {
+            state.priorityColors = { ...defaultPriorityColors, ...JSON.parse(saved) };
+          }
+        } catch {}
+      }
     },
     setFilterPriority: (state, action: PayloadAction<string | null>) => {
       state.filterPriority = action.payload;
     },
+    setFilterPersonId: (state, action: PayloadAction<string | null>) => {
+      state.filterPersonId = action.payload;
+    },
   },
   extraReducers: (builder) => {
-    // Fetch tasks
+    // Fetch date tasks
     builder
       .addCase(fetchTasksForDate.pending, (state) => {
         state.isLoading = true;
@@ -276,6 +295,7 @@ export const {
   setPriorityColor,
   loadPriorityColorsFromStorage,
   setFilterPriority,
+  setFilterPersonId,
 } = tasksSlice.actions;
 
 export default tasksSlice.reducer;

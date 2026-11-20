@@ -28,6 +28,8 @@ import {
   ShieldCheck,
   Tag,
   BookOpen,
+  X,
+  Circle,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -48,8 +50,9 @@ import {
   TransactionItem,
 } from '@/store/slices/ledgerSlice';
 import { showToast } from '@/store/slices/uiSlice';
-import { createTask } from '@/store/slices/tasksSlice';
+import { createTask, fetchThreeDaysTasks } from '@/store/slices/tasksSlice';
 import { AccountType } from '@/lib/models/Account';
+import { ICustomField } from '@/lib/models/Person';
 
 export default function HisaabKitaabPanel() {
   const dispatch = useAppDispatch();
@@ -69,6 +72,17 @@ export default function HisaabKitaabPanel() {
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [isAddNonTxEntryOpen, setIsAddNonTxEntryOpen] = useState(false);
   const [isAddRemarkOpen, setIsAddRemarkOpen] = useState(false);
+  const [isAddCustomFieldOpen, setIsAddCustomFieldOpen] = useState(false);
+
+  // Dynamic Custom Field Form State (Date Task vs Normal Info)
+  const [customFieldType, setCustomFieldType] = useState<'date_task' | 'info'>('date_task');
+  const [customFieldName, setCustomFieldName] = useState('');
+  const [customFieldDetails, setCustomFieldDetails] = useState('');
+  const [customFieldDate, setCustomFieldDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customFieldAmount, setCustomFieldAmount] = useState<number | ''>('');
+  const [customFieldTax, setCustomFieldTax] = useState('');
+  const [customFieldRemarks, setCustomFieldRemarks] = useState('');
+  const [customFieldSyncTask, setCustomFieldSyncTask] = useState(true);
 
   // New Person Form State (Multiple contacts, Opening balance + remarks, etc.)
   const [personName, setPersonName] = useState('');
@@ -316,6 +330,95 @@ export default function HisaabKitaabPanel() {
     setRemarkNote('');
     setRemarkDueDate('');
     setIsAddRemarkOpen(false);
+  };
+
+  // Add Dynamic Custom Field (Date Task with Amount & Tax vs Normal Info)
+  const handleAddCustomField = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPerson || !customFieldName.trim()) return;
+
+    const newField: ICustomField = {
+      _id: Date.now().toString(),
+      fieldType: customFieldType,
+      fieldName: customFieldName.trim(),
+      details: customFieldDetails.trim(),
+      date: customFieldType === 'date_task' ? customFieldDate : undefined,
+      amount: customFieldAmount !== '' ? Number(customFieldAmount) : undefined,
+      tax: customFieldTax.trim() || undefined,
+      remarks: customFieldRemarks.trim(),
+      syncAsTask: customFieldType === 'date_task' ? customFieldSyncTask : false,
+      completed: false,
+      createdAt: new Date(),
+    };
+
+    const currentFields = selectedPerson.customFields || [];
+    const updated = [...currentFields, newField];
+
+    await dispatch(
+      updatePerson({
+        id: selectedPerson._id,
+        updates: { customFields: updated },
+      })
+    );
+
+    // If date_task with syncAsTask, create task immediately
+    if (customFieldType === 'date_task' && customFieldSyncTask && customFieldDate) {
+      const amountStr = customFieldAmount !== '' ? ` (₹${Number(customFieldAmount).toLocaleString('en-IN')})` : '';
+      const taxStr = customFieldTax.trim() ? ` [Tax: ${customFieldTax.trim()}]` : '';
+      await dispatch(
+        createTask({
+          title: `${selectedPerson.name}: ${customFieldName.trim()}${amountStr}${taxStr}`,
+          description: `Party: ${selectedPerson.name} | Field: ${customFieldName.trim()}${customFieldRemarks.trim() ? ' | ' + customFieldRemarks.trim() : ''}`,
+          priority: 'urgent-important',
+          date: customFieldDate,
+          dueDate: customFieldDate,
+          personId: selectedPerson._id,
+          personName: selectedPerson.name,
+          amount: customFieldAmount !== '' ? Number(customFieldAmount) : undefined,
+          tax: customFieldTax.trim() || undefined,
+          sourceType: 'person_field',
+        })
+      );
+      dispatch(fetchThreeDaysTasks(customFieldDate));
+      dispatch(showToast({ message: 'फील्ड सफलतापूर्वक प्रोफाइल में जोड़ी गई और टास्क मैनेजर में सिंक हो गई! 📅', type: 'success' }));
+    } else {
+      dispatch(showToast({ message: 'प्रोफ़ाइल फ़ील्ड सफलतापूर्वक जोड़ी गई! 📋', type: 'success' }));
+    }
+
+    setCustomFieldName('');
+    setCustomFieldDetails('');
+    setCustomFieldAmount('');
+    setCustomFieldTax('');
+    setCustomFieldRemarks('');
+    setIsAddCustomFieldOpen(false);
+  };
+
+  const handleDeleteCustomField = async (fieldIndex: number) => {
+    if (!selectedPerson) return;
+    const currentFields = [...(selectedPerson.customFields || [])];
+    currentFields.splice(fieldIndex, 1);
+
+    await dispatch(
+      updatePerson({
+        id: selectedPerson._id,
+        updates: { customFields: currentFields },
+      })
+    );
+    dispatch(showToast({ message: 'Field removed from profile', type: 'info' }));
+  };
+
+  const handleToggleCustomFieldComplete = async (fieldIndex: number) => {
+    if (!selectedPerson) return;
+    const currentFields = JSON.parse(JSON.stringify(selectedPerson.customFields || []));
+    if (currentFields[fieldIndex]) {
+      currentFields[fieldIndex].completed = !currentFields[fieldIndex].completed;
+      await dispatch(
+        updatePerson({
+          id: selectedPerson._id,
+          updates: { customFields: currentFields },
+        })
+      );
+    }
   };
 
   // Export Contact as .vcf
@@ -603,26 +706,133 @@ END:VCARD`;
               </div>
             </div>
 
-            {/* NON-TRANSACTIONAL PROFILE ENTRIES (Instantly visible upon opening profile) */}
-            <div className="pt-2 border-t border-[#262626] space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  Non-Transactional Profile Entries &amp; Attributes ({selectedPerson.profileEntries?.length || 0})
-                </span>
+            {/* DYNAMIC CUSTOM FIELDS: DATE TASKS & NORMAL PROFILE INFO */}
+            <div className="pt-3 border-t border-[#262626] space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Bookmark className="w-3.5 h-3.5 text-blue-400" />
+                    डायनामिक प्रोफ़ाइल फ़ील्ड्स व पर्सन टास्क्स (Dynamic Fields)
+                  </span>
+                  <span className="text-[11px] text-neutral-400">
+                    तारीख, राशि व टैक्स के साथ टास्क्स जोड़ें अथवा स्थायी प्रोफ़ाइल विवरण रखें
+                  </span>
+                </div>
                 <button
-                  onClick={() => setIsAddNonTxEntryOpen(true)}
-                  className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 font-semibold"
+                  onClick={() => setIsAddCustomFieldOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl font-bold shadow-lg transition active:scale-95"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Non-Tx Entry</span>
+                  <Plus className="w-4 h-4" />
+                  <span>+ नई फ़ील्ड जोड़ें (Add Field)</span>
                 </button>
               </div>
 
-              {selectedPerson.profileEntries && selectedPerson.profileEntries.length > 0 ? (
+              {/* Sub-section 1: Date & Task Fields (Date, Amount, Tax, Remarks, Auto-Task) */}
+              <div className="bg-[#141414] p-3.5 rounded-xl border border-[#282828] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>📅 महत्वपूर्ण तारीखें, ड्यू डेट्स व टास्क्स (Date, Amount &amp; Tax Tasks)</span>
+                  </span>
+                  <span className="text-[10px] text-neutral-400 bg-[#202020] px-2 py-0.5 rounded-full font-semibold">
+                    {selectedPerson.customFields?.filter(f => f.fieldType === 'date_task' || f.date).length || 0} Tasks
+                  </span>
+                </div>
+
+                {selectedPerson.customFields && selectedPerson.customFields.filter(f => f.fieldType === 'date_task' || f.date).length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {selectedPerson.customFields.map((field, idx) => {
+                      if (field.fieldType !== 'date_task' && !field.date) return null;
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border transition ${
+                            field.completed
+                              ? 'bg-[#121212] border-[#222222] opacity-60'
+                              : 'bg-[#191919] border-[#2e2e2e]'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <button
+                                onClick={() => handleToggleCustomFieldComplete(idx)}
+                                className="mt-0.5 text-neutral-400 hover:text-white transition flex-shrink-0"
+                              >
+                                {field.completed ? (
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                  <Circle className="w-4 h-4 text-neutral-500" />
+                                )}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <h4 className={`text-xs font-bold ${field.completed ? 'line-through text-neutral-500' : 'text-neutral-100'}`}>
+                                  {field.fieldName || field.label}
+                                </h4>
+                                {field.remarks && (
+                                  <p className="text-[11px] text-neutral-400 truncate mt-0.5">
+                                    {field.remarks}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleDeleteCustomField(idx)}
+                              className="text-neutral-500 hover:text-red-400 p-1 transition"
+                              title="Delete Field"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-1.5 border-t border-[#252525] text-[10px]">
+                            {field.date && (
+                              <span className="flex items-center gap-1 font-mono text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40">
+                                <Clock className="w-2.5 h-2.5" />
+                                <span>तारीख: {field.date}</span>
+                              </span>
+                            )}
+                            {field.amount ? (
+                              <span className="font-semibold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
+                                ₹{Number(field.amount).toLocaleString('en-IN')}
+                              </span>
+                            ) : null}
+                            {field.tax && (
+                              <span className="font-medium text-amber-300 bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-800/30">
+                                Tax: {field.tax}
+                              </span>
+                            )}
+                            <span className="ml-auto text-[9px] text-blue-400 font-bold bg-blue-950/40 px-1.5 py-0.5 rounded">
+                              ✓ Task Manager Synced
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-500 italic py-1">
+                    कोई ड्यू डेट या टास्क फ़ील्ड नहीं है। &quot;+ नई फ़ील्ड जोड़ें&quot; बटन से तारीख, राशि व टैक्स जोड़ें।
+                  </p>
+                )}
+              </div>
+
+              {/* Sub-section 2: Permanent Info Fields (Details, Remarks, KYC, etc.) */}
+              <div className="bg-[#141414] p-3.5 rounded-xl border border-[#282828] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>📋 स्थाई प्रोफ़ाइल विवरण एवं दस्तावेज (Profile Attributes &amp; KYC)</span>
+                  </span>
+                  <span className="text-[10px] text-neutral-400 bg-[#202020] px-2 py-0.5 rounded-full font-semibold">
+                    {(selectedPerson.profileEntries?.length || 0) + (selectedPerson.customFields?.filter(f => f.fieldType === 'info' || (!f.fieldType && !f.date)).length || 0)} Items
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {selectedPerson.profileEntries.map((entry, idx) => (
-                    <div key={idx} className="p-3 bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl text-xs space-y-1">
+                  {/* Render Profile Entries */}
+                  {selectedPerson.profileEntries?.map((entry, idx) => (
+                    <div key={`pe-${idx}`} className="p-3 bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl text-xs space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase text-neutral-400 bg-[#252525] px-1.5 py-0.5 rounded">
                           {entry.category}
@@ -633,12 +843,27 @@ END:VCARD`;
                       {entry.remarks && <span className="text-[11px] text-neutral-400 block italic">{entry.remarks}</span>}
                     </div>
                   ))}
+
+                  {/* Render Dynamic Custom Info Fields */}
+                  {selectedPerson.customFields?.map((field, idx) => {
+                    if (field.fieldType === 'date_task' || field.date) return null;
+                    return (
+                      <div key={`cf-${idx}`} className="p-3 bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl text-xs space-y-1 relative group">
+                        <button
+                          onClick={() => handleDeleteCustomField(idx)}
+                          className="absolute right-2 top-2 text-neutral-500 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition"
+                          title="Delete Field"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                        <span className="font-semibold text-neutral-400 block">{field.fieldName || field.label}:</span>
+                        <span className="font-bold text-white block text-sm">{field.details || field.value}</span>
+                        {field.remarks && <span className="text-[11px] text-neutral-400 block italic">{field.remarks}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <p className="text-xs text-neutral-500 italic py-2">
-                  No non-transactional profile entries yet (e.g. GSTIN, PAN, Terms, Agreements). Click &quot;Add Non-Tx Entry&quot; above.
-                </p>
-              )}
+              </div>
             </div>
 
             {/* DATE-WISE INTERACTION REMARKS & TASK MANAGER DUE DATES */}
@@ -1342,6 +1567,200 @@ END:VCARD`;
                   className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-lg"
                 >
                   Save Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== CREATE DYNAMIC CUSTOM FIELD MODAL ==================== */}
+      {isAddCustomFieldOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#181818] border border-[#2e2e2e] rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-[#2d2d2d]">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Bookmark className="w-5 h-5 text-blue-500" />
+                <span>प्रोफ़ाइल में नई फ़ील्ड जोड़ें (Add Profile Field)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddCustomFieldOpen(false)}
+                className="text-neutral-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Field Type Selection: Date/Task vs Normal Info */}
+            <div className="flex items-center p-1 bg-[#121212] rounded-xl border border-[#2b2b2b]">
+              <button
+                type="button"
+                onClick={() => setCustomFieldType('date_task')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+                  customFieldType === 'date_task'
+                    ? 'bg-amber-600 text-white shadow'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>1. तारीख व टास्क फ़ील्ड</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCustomFieldType('info')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+                  customFieldType === 'info'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>2. सामान्य विवरण / KYC</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCustomField} className="space-y-3">
+              {/* Field Name */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {customFieldType === 'date_task'
+                    ? 'किस चीज़ की तारीख है? (Field Name / Purpose) *'
+                    : 'फ़ील्ड का नाम (Field Name / Label) *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={customFieldName}
+                  onChange={(e) => setCustomFieldName(e.target.value)}
+                  placeholder={
+                    customFieldType === 'date_task'
+                      ? 'उदा. पेमेंट फॉलो-अप, चेक क्लीयरेंस, एग्रीमेंट रिन्यूअल'
+                      : 'उदा. GSTIN, PAN कार्ड, बैंक खाता, व्यापार शर्तें, पता'
+                  }
+                  className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* DATE TASK SPECIFIC FIELDS */}
+              {customFieldType === 'date_task' ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                        तारीख (Due Date) *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={customFieldDate}
+                        onChange={(e) => setCustomFieldDate(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                        अमाउंट (₹ Optional)
+                      </label>
+                      <input
+                        type="number"
+                        value={customFieldAmount}
+                        onChange={(e) =>
+                          setCustomFieldAmount(e.target.value === '' ? '' : Number(e.target.value))
+                        }
+                        placeholder="उदा. 50000"
+                        className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                      टैक्स / GST विवरण (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={customFieldTax}
+                      onChange={(e) => setCustomFieldTax(e.target.value)}
+                      placeholder="उदा. 18% GST / ₹9,000 Tax"
+                      className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                      रिमार्क्स (Remarks / Notes)
+                    </label>
+                    <textarea
+                      value={customFieldRemarks}
+                      onChange={(e) => setCustomFieldRemarks(e.target.value)}
+                      rows={2}
+                      placeholder="कोई विशेष निर्देश या बातचीत का विवरण..."
+                      className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-blue-500 resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 bg-amber-950/20 p-2.5 rounded-xl border border-amber-800/30">
+                    <input
+                      type="checkbox"
+                      id="syncTaskCheckbox"
+                      checked={customFieldSyncTask}
+                      onChange={(e) => setCustomFieldSyncTask(e.target.checked)}
+                      className="w-4 h-4 rounded text-amber-500 cursor-pointer"
+                    />
+                    <label
+                      htmlFor="syncTaskCheckbox"
+                      className="text-xs text-amber-300 font-semibold cursor-pointer"
+                    >
+                      टास्क मैनेजर में उस तारीख को ऑटो-ऐड करें (3-Day Daily Tasks)
+                    </label>
+                  </div>
+                </>
+              ) : (
+                /* NORMAL INFO FIELD */
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                      डिटेल्स / विवरण (Field Details / Value) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customFieldDetails}
+                      onChange={(e) => setCustomFieldDetails(e.target.value)}
+                      placeholder="उदा. 07AAAAA0000A1Z5, HDFC 5010023423..."
+                      className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                      रिमार्क्स (Remarks - Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={customFieldRemarks}
+                      onChange={(e) => setCustomFieldRemarks(e.target.value)}
+                      placeholder="अतिरिक्त जानकारी या टिप्पणी..."
+                      className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#2d2d2d]">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCustomFieldOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-lg transition"
+                >
+                  {customFieldType === 'date_task' ? 'Save & Sync Task' : 'Save to Profile'}
                 </button>
               </div>
             </form>

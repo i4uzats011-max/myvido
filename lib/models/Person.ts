@@ -15,8 +15,21 @@ export interface IProfileEntry {
 }
 
 export interface ICustomField {
-  label: string;
-  value: string;
+  _id?: string;
+  fieldType: 'date_task' | 'info'; // 'date_task' = Date, Amount, Tax, Remarks, Auto-Task; 'info' = Normal Profile Attribute
+  fieldName: string; // Field Name / Title (किस चीज की डेट है or Info Label e.g. GSTIN, Payment Follow-up)
+  details?: string; // Value or Details for normal info field
+  date?: string; // Due / Event Date (YYYY-MM-DD)
+  amount?: number; // Amount if applicable
+  tax?: string; // Tax / GST details if applicable
+  remarks?: string; // Remarks / Notes
+  syncAsTask?: boolean; // Default true for date_task
+  taskId?: string; // Synced Task ID
+  completed?: boolean;
+  createdAt?: Date;
+  // Legacy compatibility
+  label?: string;
+  value?: string;
   isDate?: boolean;
 }
 
@@ -49,7 +62,7 @@ export interface IPerson extends Document {
   openingBalanceRemark?: string; // Remarks explaining previous opening balance
   profileEntries: IProfileEntry[]; // Non-transactional entries categorized in profile
   remarksHistory: IRemarkEntry[]; // Date-wise conversation & interaction history
-  customFields: ICustomField[];
+  customFields: ICustomField[]; // Dynamic fields: Date Tasks (Date + Amount + Tax + Remarks) & Normal Info fields
   createdAt: Date;
 }
 
@@ -75,11 +88,23 @@ const ProfileEntrySchema = new Schema(
 
 const CustomFieldSchema = new Schema(
   {
-    label: { type: String, required: true },
-    value: { type: String, required: true },
+    fieldType: { type: String, enum: ['date_task', 'info'], default: 'info' },
+    fieldName: { type: String, required: true, trim: true },
+    details: { type: String, default: '' },
+    date: { type: String, default: '' },
+    amount: { type: Number, default: 0 },
+    tax: { type: String, default: '' },
+    remarks: { type: String, default: '' },
+    syncAsTask: { type: Boolean, default: true },
+    taskId: { type: String, default: '' },
+    completed: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
+    // Legacy support
+    label: { type: String, default: '' },
+    value: { type: String, default: '' },
     isDate: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: true }
 );
 
 const RemarkEntrySchema = new Schema(

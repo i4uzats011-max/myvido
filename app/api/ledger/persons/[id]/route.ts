@@ -96,8 +96,41 @@ export async function PUT(
       return NextResponse.json({ error: 'Person not found' }, { status: 404 });
     }
 
+    // Sync any new custom date fields to Task Manager
+    if (Array.isArray(body.customFields)) {
+      let fieldsModified = false;
+      for (const cf of body.customFields) {
+        if ((cf.fieldType === 'date_task' || cf.date) && cf.date && !cf.taskId && cf.syncAsTask !== false) {
+          try {
+            const amountStr = cf.amount ? ` (₹${Number(cf.amount).toLocaleString('en-IN')})` : '';
+            const taxStr = cf.tax ? ` [Tax: ${cf.tax}]` : '';
+            const task = await Task.create({
+              title: `${updated.name}: ${cf.fieldName || 'Task'}${amountStr}${taxStr}`,
+              description: `Party: ${updated.name} | Field: ${cf.fieldName || ''}${cf.remarks ? ' | ' + cf.remarks : ''}`,
+              priority: 'urgent-important',
+              date: cf.date,
+              dueDate: cf.date,
+              personId: id,
+              personName: updated.name,
+              amount: Number(cf.amount) || 0,
+              tax: cf.tax || '',
+              sourceType: 'person_field',
+            });
+            cf.taskId = String(task._id);
+            fieldsModified = true;
+          } catch (e) {
+            console.warn('Failed to auto-create task for custom date field:', e);
+          }
+        }
+      }
+      if (fieldsModified) {
+        await Person.findByIdAndUpdate(id, { $set: { customFields: body.customFields } });
+      }
+    }
+
     // Sync any new remarks with dueDate to Task Manager
     if (Array.isArray(body.remarksHistory)) {
+      let remarksModified = false;
       for (const rh of body.remarksHistory) {
         if (rh.dueDate && !rh.taskId) {
           try {
@@ -107,15 +140,20 @@ export async function PUT(
               priority: 'urgent-important',
               date: rh.dueDate,
               dueDate: rh.dueDate,
+              personId: id,
+              personName: updated.name,
+              sourceType: 'ledger_due',
             });
             rh.taskId = String(task._id);
+            remarksModified = true;
           } catch (e) {
             console.warn('Failed to auto-create task for remark due date:', e);
           }
         }
       }
-      // Re-save with taskId references if any
-      await Person.findByIdAndUpdate(id, { $set: { remarksHistory: body.remarksHistory } });
+      if (remarksModified) {
+        await Person.findByIdAndUpdate(id, { $set: { remarksHistory: body.remarksHistory } });
+      }
     }
 
     // If name or mobile updated, update denormalized fields in transactions
@@ -131,7 +169,8 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ person: updated });
+    const finalPerson = await Person.findById(id).lean();
+    return NextResponse.json({ person: finalPerson || updated });
   } catch (error: unknown) {
     console.error('Person PUT error:', error);
     const message = error instanceof Error ? error.message : 'Failed to update person';
@@ -152,10 +191,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Person not found' }, { status: 404 });
     }
 
-    // Clean up related transactions
+    // Clean up related transactions and tasks
     await Transaction.deleteMany({ personId: id as any });
+    await Task.deleteMany({ personId: id });
 
-    return NextResponse.json({ success: true, message: 'Person and associated ledger records deleted' });
+    return NextResponse.json({ success: true, message: 'Person, ledger transactions and linked tasks deleted' });
   } catch (error: unknown) {
     console.error('Person DELETE error:', error);
     const message = error instanceof Error ? error.message : 'Failed to delete person';
