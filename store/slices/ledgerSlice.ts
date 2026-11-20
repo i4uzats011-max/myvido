@@ -1,11 +1,26 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { ICustomField, IRemarkEntry } from '@/lib/models/Person';
-import { AccountCategory, TransactionType } from '@/lib/models/Transaction';
+import { ICustomField, IRemarkEntry, IContactItem, IProfileEntry } from '@/lib/models/Person';
+import { AccountType } from '@/lib/models/Account';
+
+export interface AccountItem {
+  _id: string;
+  name: string;
+  accountType: AccountType; // 'personal' | 'real' | 'nominal'
+  personId?: string | null;
+  personMobile?: string;
+  openingBalance: number;
+  openingBalanceRemark?: string;
+  description?: string;
+  totalDebit?: number;
+  totalCredit?: number;
+  netBalance?: number;
+}
 
 export interface PersonItem {
   _id: string;
   name: string;
   mobile: string;
+  contacts?: IContactItem[];
   email?: string;
   category: 'customer' | 'supplier' | 'friend' | 'family' | 'staff' | 'other';
   dob?: string;
@@ -16,8 +31,10 @@ export interface PersonItem {
   bankName?: string;
   upiId?: string;
   notes?: string;
-  remarksHistory?: IRemarkEntry[];
   openingBalance: number;
+  openingBalanceRemark?: string;
+  profileEntries?: IProfileEntry[];
+  remarksHistory?: IRemarkEntry[];
   totalGiven: number;
   totalTaken: number;
   netBalance: number;
@@ -28,16 +45,19 @@ export interface PersonItem {
 
 export interface TransactionItem {
   _id: string;
-  accountCategory: AccountCategory;
-  type: TransactionType;
+  debitAccountId: string;
+  debitAccountName: string;
+  debitAccountType: AccountType;
+  creditAccountId: string;
+  creditAccountName: string;
+  creditAccountType: AccountType;
   amount: number;
   date: string;
   dueDate?: string;
+  narration?: string;
   personId?: string | null;
   personName?: string;
   personMobile?: string;
-  category?: string;
-  description?: string;
   isSettled: boolean;
   settledAt?: string | null;
   createdAt: string;
@@ -45,9 +65,10 @@ export interface TransactionItem {
 
 interface LedgerState {
   persons: PersonItem[];
+  accounts: AccountItem[];
   transactions: TransactionItem[];
   selectedPersonId: string | null;
-  activeLedgerTab: 'personal' | 'real' | 'nominal' | 'all';
+  activeLedgerTab: 'personal' | 'real' | 'nominal' | 'journal' | 'accounts';
   searchQuery: string;
   isLoading: boolean;
   error: string | null;
@@ -55,6 +76,7 @@ interface LedgerState {
 
 const initialState: LedgerState = {
   persons: [],
+  accounts: [],
   transactions: [],
   selectedPersonId: null,
   activeLedgerTab: 'personal',
@@ -81,7 +103,7 @@ export const fetchPersons = createAsyncThunk(
 
 export const createPerson = createAsyncThunk(
   'ledger/createPerson',
-  async (personData: Partial<PersonItem>, { rejectWithValue }) => {
+  async (personData: Partial<PersonItem>, { rejectWithValue, dispatch }) => {
     try {
       const res = await fetch('/api/ledger/persons', {
         method: 'POST',
@@ -90,6 +112,7 @@ export const createPerson = createAsyncThunk(
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error);
+      dispatch(fetchAccounts());
       return data.person;
     } catch {
       return rejectWithValue('Failed to create person');
@@ -99,7 +122,7 @@ export const createPerson = createAsyncThunk(
 
 export const updatePerson = createAsyncThunk(
   'ledger/updatePerson',
-  async ({ id, updates }: { id: string; updates: Partial<PersonItem> }, { rejectWithValue }) => {
+  async ({ id, updates }: { id: string; updates: Partial<PersonItem> }, { rejectWithValue, dispatch }) => {
     try {
       const res = await fetch(`/api/ledger/persons/${id}`, {
         method: 'PUT',
@@ -108,6 +131,7 @@ export const updatePerson = createAsyncThunk(
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error);
+      dispatch(fetchAccounts());
       return data.person;
     } catch {
       return rejectWithValue('Failed to update person');
@@ -117,14 +141,49 @@ export const updatePerson = createAsyncThunk(
 
 export const deletePerson = createAsyncThunk(
   'ledger/deletePerson',
-  async (id: string, { rejectWithValue }) => {
+  async (id: string, { rejectWithValue, dispatch }) => {
     try {
       const res = await fetch(`/api/ledger/persons/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error);
+      dispatch(fetchAccounts());
       return id;
     } catch {
       return rejectWithValue('Failed to delete person');
+    }
+  }
+);
+
+export const fetchAccounts = createAsyncThunk(
+  'ledger/fetchAccounts',
+  async (type: string | undefined, { rejectWithValue }) => {
+    try {
+      const url = type ? `/api/ledger/accounts?type=${type}` : '/api/ledger/accounts';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error);
+      return data.accounts;
+    } catch {
+      return rejectWithValue('Failed to load accounts');
+    }
+  }
+);
+
+export const createAccount = createAsyncThunk(
+  'ledger/createAccount',
+  async (accData: Partial<AccountItem>, { rejectWithValue, dispatch }) => {
+    try {
+      const res = await fetch('/api/ledger/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(accData),
+      });
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error);
+      dispatch(fetchPersons(undefined));
+      return data.account;
+    } catch {
+      return rejectWithValue('Failed to create account');
     }
   }
 );
@@ -157,8 +216,8 @@ export const createTransaction = createAsyncThunk(
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error);
-      // Refresh persons to update balances
-      dispatch(fetchPersons());
+      dispatch(fetchPersons(undefined));
+      dispatch(fetchAccounts());
       return data.transaction;
     } catch {
       return rejectWithValue('Failed to create transaction');
@@ -173,7 +232,8 @@ export const deleteTransaction = createAsyncThunk(
       const res = await fetch(`/api/ledger/transactions/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error);
-      dispatch(fetchPersons());
+      dispatch(fetchPersons(undefined));
+      dispatch(fetchAccounts());
       return id;
     } catch {
       return rejectWithValue('Failed to delete transaction');
@@ -190,7 +250,7 @@ const ledgerSlice = createSlice({
     },
     setActiveLedgerTab: (
       state,
-      action: PayloadAction<'personal' | 'real' | 'nominal' | 'all'>
+      action: PayloadAction<'personal' | 'real' | 'nominal' | 'journal' | 'accounts'>
     ) => {
       state.activeLedgerTab = action.payload;
     },
@@ -238,6 +298,15 @@ const ledgerSlice = createSlice({
       if (state.selectedPersonId === action.payload) {
         state.selectedPersonId = null;
       }
+    });
+
+    // Accounts
+    builder.addCase(fetchAccounts.fulfilled, (state, action) => {
+      state.accounts = action.payload;
+    });
+
+    builder.addCase(createAccount.fulfilled, (state, action) => {
+      state.accounts.push(action.payload);
     });
 
     // Transactions

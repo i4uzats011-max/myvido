@@ -1,40 +1,52 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-
-export type AccountCategory = 'personal' | 'real' | 'nominal';
-export type TransactionType =
-  | 'given' // Dena / Diya (Loan given or payment made)
-  | 'taken' // Lena / Liya (Loan taken or payment received)
-  | 'income' // Nominal: Income earned
-  | 'expense' // Nominal: Expense incurred
-  | 'asset_add' // Real: Asset acquired (Cash/Property/Investment)
-  | 'asset_reduce'; // Real: Asset disposed
+import { AccountType } from './Account';
 
 export interface ITransaction extends Document {
-  accountCategory: AccountCategory; // 'personal' | 'real' | 'nominal'
-  type: TransactionType;
+  debitAccountId: mongoose.Schema.Types.ObjectId;
+  debitAccountName: string;
+  debitAccountType: AccountType; // 'personal' | 'real' | 'nominal'
+  creditAccountId: mongoose.Schema.Types.ObjectId;
+  creditAccountName: string;
+  creditAccountType: AccountType; // 'personal' | 'real' | 'nominal'
   amount: number;
   date: string; // YYYY-MM-DD
-  dueDate?: string; // YYYY-MM-DD (देना कब है / लेना कब है)
-  personId?: mongoose.Schema.Types.ObjectId;
+  dueDate?: string; // YYYY-MM-DD (देना कब है / लेना कब है - Auto syncs to Task Manager)
+  narration?: string; // Description / Remarks
+  personId?: mongoose.Schema.Types.ObjectId | null;
   personName?: string;
   personMobile?: string;
-  category?: string; // e.g., 'Consulting', 'Salary', 'Rent', 'Bank Account', 'Office Asset'
-  description?: string;
   isSettled: boolean;
   settledAt?: Date | null;
   createdAt: Date;
 }
 
 const TransactionSchema: Schema = new Schema({
-  accountCategory: {
+  debitAccountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Account',
+    required: true,
+  },
+  debitAccountName: {
+    type: String,
+    required: true,
+  },
+  debitAccountType: {
     type: String,
     enum: ['personal', 'real', 'nominal'],
     required: true,
-    default: 'personal',
   },
-  type: {
+  creditAccountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Account',
+    required: true,
+  },
+  creditAccountName: {
     type: String,
-    enum: ['given', 'taken', 'income', 'expense', 'asset_add', 'asset_reduce'],
+    required: true,
+  },
+  creditAccountType: {
+    type: String,
+    enum: ['personal', 'real', 'nominal'],
     required: true,
   },
   amount: {
@@ -52,6 +64,10 @@ const TransactionSchema: Schema = new Schema({
     default: '',
     index: true,
   },
+  narration: {
+    type: String,
+    default: '',
+  },
   personId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Person',
@@ -62,14 +78,6 @@ const TransactionSchema: Schema = new Schema({
     default: '',
   },
   personMobile: {
-    type: String,
-    default: '',
-  },
-  category: {
-    type: String,
-    default: 'General',
-  },
-  description: {
     type: String,
     default: '',
   },

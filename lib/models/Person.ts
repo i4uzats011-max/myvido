@@ -1,5 +1,19 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface IContactItem {
+  label: string; // e.g. 'Primary Mobile', 'WhatsApp', 'Office', 'Home', 'Manager'
+  number: string;
+  isWhatsapp?: boolean;
+}
+
+export interface IProfileEntry {
+  category: string; // e.g. 'KYC / Documents', 'Business Terms', 'Personal Info', 'Preferences', 'Other'
+  key: string; // e.g. 'GSTIN', 'PAN', 'Credit Limit', 'Spouse Name', 'Preferred Delivery Slot'
+  value: string;
+  remarks?: string;
+  date?: string; // Optional relevant date
+}
+
 export interface ICustomField {
   label: string;
   value: string;
@@ -8,8 +22,9 @@ export interface ICustomField {
 
 export interface IRemarkEntry {
   recordedDate: string; // YYYY-MM-DD (Date note was created)
-  dueDate?: string; // YYYY-MM-DD (Follow-up due date)
+  dueDate?: string; // YYYY-MM-DD (Follow-up due date - triggers Task Manager)
   note: string;
+  category?: string; // e.g. 'Payment Call', 'Meeting', 'Promise', 'General'
   syncAsTask?: boolean; // If true, automatically generates a task in Daily Tasks
   taskId?: string;
   completed?: boolean;
@@ -18,7 +33,8 @@ export interface IRemarkEntry {
 
 export interface IPerson extends Document {
   name: string;
-  mobile: string;
+  mobile: string; // Primary phone
+  contacts: IContactItem[]; // Multiple contacts list
   email?: string;
   category: 'customer' | 'supplier' | 'friend' | 'family' | 'staff' | 'other';
   dob?: string; // YYYY-MM-DD (Birthdays auto-sync to Calendar)
@@ -29,11 +45,33 @@ export interface IPerson extends Document {
   bankName?: string;
   upiId?: string;
   notes?: string;
-  remarksHistory: IRemarkEntry[]; // Date-wise conversation / interaction history
   openingBalance: number; // Positive = Receivable (Lena), Negative = Payable (Dena)
+  openingBalanceRemark?: string; // Remarks explaining previous opening balance
+  profileEntries: IProfileEntry[]; // Non-transactional entries categorized in profile
+  remarksHistory: IRemarkEntry[]; // Date-wise conversation & interaction history
   customFields: ICustomField[];
   createdAt: Date;
 }
+
+const ContactItemSchema = new Schema(
+  {
+    label: { type: String, default: 'Mobile' },
+    number: { type: String, required: true, trim: true },
+    isWhatsapp: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
+const ProfileEntrySchema = new Schema(
+  {
+    category: { type: String, required: true, default: 'General' },
+    key: { type: String, required: true },
+    value: { type: String, required: true },
+    remarks: { type: String, default: '' },
+    date: { type: String, default: '' },
+  },
+  { _id: false }
+);
 
 const CustomFieldSchema = new Schema(
   {
@@ -49,6 +87,7 @@ const RemarkEntrySchema = new Schema(
     recordedDate: { type: String, required: true },
     dueDate: { type: String, default: '' },
     note: { type: String, required: true },
+    category: { type: String, default: 'General' },
     syncAsTask: { type: Boolean, default: true },
     taskId: { type: String, default: '' },
     completed: { type: Boolean, default: false },
@@ -67,6 +106,10 @@ const PersonSchema: Schema = new Schema({
     type: String,
     default: '',
     trim: true,
+  },
+  contacts: {
+    type: [ContactItemSchema],
+    default: [],
   },
   email: {
     type: String,
@@ -113,13 +156,21 @@ const PersonSchema: Schema = new Schema({
     type: String,
     default: '',
   },
-  remarksHistory: {
-    type: [RemarkEntrySchema],
-    default: [],
-  },
   openingBalance: {
     type: Number,
     default: 0,
+  },
+  openingBalanceRemark: {
+    type: String,
+    default: '',
+  },
+  profileEntries: {
+    type: [ProfileEntrySchema],
+    default: [],
+  },
+  remarksHistory: {
+    type: [RemarkEntrySchema],
+    default: [],
   },
   customFields: {
     type: [CustomFieldSchema],

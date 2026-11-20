@@ -7,13 +7,22 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
+    const dates = searchParams.get('dates');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     const query: Record<string, unknown> = {};
-    if (date) {
+
+    if (dates) {
+      const dateList = dates.split(',').map((d) => d.trim());
+      query.date = { $in: dateList };
+    } else if (startDate && endDate) {
+      query.date = { $gte: startDate, $lte: endDate };
+    } else if (date) {
       query.date = date;
     }
 
-    const tasks = await Task.find(query).sort({ completed: 1, createdAt: -1 }).lean();
+    const tasks = await Task.find(query).sort({ completed: 1, date: 1, createdAt: -1 }).lean();
 
     return NextResponse.json({ tasks });
   } catch (error: unknown) {
@@ -26,7 +35,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { title, description, priority, date, isRoutine, routineFrequency } = body;
+    const { title, description, priority, date, dueDate, isRoutine, routineFrequency, customColor } = body;
 
     if (!title || !date) {
       return NextResponse.json(
@@ -38,8 +47,10 @@ export async function POST(request: NextRequest) {
     const task = await Task.create({
       title,
       description: description || '',
-      priority: priority || 'important',
+      priority: priority || 'urgent-important',
+      customColor: customColor || '',
       date,
+      dueDate: dueDate || date,
       isRoutine: isRoutine || false,
       routineFrequency: routineFrequency || null,
     });

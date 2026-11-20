@@ -101,6 +101,30 @@ export const fetchTasksForDate = createAsyncThunk(
   }
 );
 
+export const fetchThreeDaysTasks = createAsyncThunk(
+  'tasks/fetchThreeDaysTasks',
+  async (centerDate: string, { rejectWithValue }) => {
+    try {
+      const d = new Date(centerDate);
+      const prev = new Date(d);
+      prev.setDate(prev.getDate() - 1);
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+
+      const dPrevStr = prev.toISOString().split('T')[0];
+      const dCurrStr = d.toISOString().split('T')[0];
+      const dNextStr = next.toISOString().split('T')[0];
+
+      const res = await fetch(`/api/tasks?dates=${dPrevStr},${dCurrStr},${dNextStr}`);
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error);
+      return data.tasks;
+    } catch {
+      return rejectWithValue('Failed to load 3-day tasks');
+    }
+  }
+);
+
 export const createTask = createAsyncThunk(
   'tasks/createTask',
   async (taskData: Partial<TaskItem>, { rejectWithValue }) => {
@@ -202,6 +226,21 @@ const tasksSlice = createSlice({
         state.items = action.payload;
       })
       .addCase(fetchTasksForDate.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch 3-day tasks
+    builder
+      .addCase(fetchThreeDaysTasks.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchThreeDaysTasks.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.items = action.payload;
+      })
+      .addCase(fetchThreeDaysTasks.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

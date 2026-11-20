@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Person } from '@/lib/models/Person';
 import { Transaction } from '@/lib/models/Transaction';
+import { Task } from '@/lib/models/Task';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,9 @@ export async function GET(request: NextRequest) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { mobile: { $regex: search, $options: 'i' } },
+        { 'contacts.number': { $regex: search, $options: 'i' } },
         { notes: { $regex: search, $options: 'i' } },
+        { 'profileEntries.value': { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -62,6 +65,7 @@ export async function POST(request: NextRequest) {
     const {
       name,
       mobile,
+      contacts,
       email,
       category,
       dob,
@@ -74,6 +78,8 @@ export async function POST(request: NextRequest) {
       notes,
       remarksHistory,
       openingBalance,
+      openingBalanceRemark,
+      profileEntries,
       customFields,
     } = body;
 
@@ -81,9 +87,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
+    const primaryMobile = mobile?.trim() || (contacts && contacts[0]?.number) || '';
+
     const person = await Person.create({
       name: name.trim(),
-      mobile: mobile?.trim() || '',
+      mobile: primaryMobile,
+      contacts: contacts || (primaryMobile ? [{ label: 'Primary', number: primaryMobile, isWhatsapp: true }] : []),
       email: email?.trim() || '',
       category: category || 'customer',
       dob: dob || '',
@@ -96,8 +105,25 @@ export async function POST(request: NextRequest) {
       notes: notes || '',
       remarksHistory: remarksHistory || [],
       openingBalance: Number(openingBalance) || 0,
+      openingBalanceRemark: openingBalanceRemark || '',
+      profileEntries: profileEntries || [],
       customFields: customFields || [],
     });
+
+    // If initial remarks have a follow-up due date, create tasks in Task Manager
+    if (Array.isArray(remarksHistory)) {
+      for (const rh of remarksHistory) {
+        if (rh.dueDate) {
+          await Task.create({
+            title: `Follow-up with ${name.trim()}: ${rh.note}`,
+            description: `Party: ${name.trim()} (${primaryMobile || 'No phone'}). Note: ${rh.note}`,
+            priority: 'urgent-important',
+            date: rh.dueDate,
+            dueDate: rh.dueDate,
+          });
+        }
+      }
+    }
 
     return NextResponse.json({ person }, { status: 201 });
   } catch (error: unknown) {

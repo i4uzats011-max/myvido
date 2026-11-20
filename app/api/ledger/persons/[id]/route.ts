@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Person } from '@/lib/models/Person';
 import { Transaction } from '@/lib/models/Transaction';
+import { Task } from '@/lib/models/Task';
 
 export async function GET(
   request: NextRequest,
@@ -55,6 +56,7 @@ export async function PUT(
     const allowedUpdates = [
       'name',
       'mobile',
+      'contacts',
       'email',
       'category',
       'dob',
@@ -67,6 +69,8 @@ export async function PUT(
       'notes',
       'remarksHistory',
       'openingBalance',
+      'openingBalanceRemark',
+      'profileEntries',
       'customFields',
     ];
 
@@ -77,6 +81,11 @@ export async function PUT(
       }
     }
 
+    // If mobile is updated or contacts updated, ensure mobile has a value
+    if (body.contacts && body.contacts.length > 0 && !body.mobile) {
+      updateFields.mobile = body.contacts[0].number;
+    }
+
     const updated = await Person.findByIdAndUpdate(
       id,
       { $set: updateFields },
@@ -85,6 +94,28 @@ export async function PUT(
 
     if (!updated) {
       return NextResponse.json({ error: 'Person not found' }, { status: 404 });
+    }
+
+    // Sync any new remarks with dueDate to Task Manager
+    if (Array.isArray(body.remarksHistory)) {
+      for (const rh of body.remarksHistory) {
+        if (rh.dueDate && !rh.taskId) {
+          try {
+            const task = await Task.create({
+              title: `Follow-up with ${updated.name}: ${rh.note}`,
+              description: `Party: ${updated.name} (${updated.mobile || 'No contact'}). Remark: ${rh.note}`,
+              priority: 'urgent-important',
+              date: rh.dueDate,
+              dueDate: rh.dueDate,
+            });
+            rh.taskId = String(task._id);
+          } catch (e) {
+            console.warn('Failed to auto-create task for remark due date:', e);
+          }
+        }
+      }
+      // Re-save with taskId references if any
+      await Person.findByIdAndUpdate(id, { $set: { remarksHistory: body.remarksHistory } });
     }
 
     // If name or mobile updated, update denormalized fields in transactions
