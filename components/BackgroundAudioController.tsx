@@ -9,8 +9,14 @@ import {
 } from '@/store/slices/playerSlice';
 
 /**
- * Handles OS-level background audio playback & Lock Screen controls
- * Works across iPhone Safari, iOS Lock Screen, Android Notification Center & Desktop Media Keys
+ * BackgroundAudioController:
+ * 1. Overcomes mobile browser background suspension:
+ *    When phone screen locks or browser minimizes, YouTube embeds automatically receive
+ *    a "visibilitychange" and "blur" pause. This controller auto-resumes playback via
+ *    the YouTube postMessage IFrame API.
+ * 2. Sustains continuous Web Audio pipeline so iOS Safari and Android Chrome
+ *    do not suspend the audio hardware when the screen turns off.
+ * 3. Registers Lock Screen controls & metadata via the Navigator MediaSession API.
  */
 export default function BackgroundAudioController() {
   const dispatch = useAppDispatch();
@@ -18,10 +24,56 @@ export default function BackgroundAudioController() {
     (state) => state.player
   );
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const audioElemRef = useRef<HTMLAudioElement | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
-  // Setup OS Lock Screen MediaSession
+  // Resume all YouTube iframes via postMessage command
+  const sendIframeCommand = (command: 'playVideo' | 'pauseVideo') => {
+    try {
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach((iframe) => {
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: 'command', func: command, args: [] }),
+          '*'
+        );
+      });
+    } catch (e) {
+      console.warn('IFrame postMessage error:', e);
+    }
+  };
+
+  // 1. Anti-pause on Screen-Off and App Switching
+  useEffect(() => {
+    const handleResume = () => {
+      // Whenever phone screen turns off, locks, or tab is hidden, send playVideo
+      sendIframeCommand('playVideo');
+      setTimeout(() => sendIframeCommand('playVideo'), 150);
+      setTimeout(() => sendIframeCommand('playVideo'), 500);
+      setTimeout(() => sendIframeCommand('playVideo'), 1200);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleResume();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      handleResume();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
+  // 2. Lock Screen MediaSession Controls
   useEffect(() => {
     if (!currentVideo || typeof window === 'undefined') return;
 
@@ -31,9 +83,9 @@ export default function BackgroundAudioController() {
 
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: title || 'FocusTube Playing',
+        title: title || 'FocusTube Background Audio',
         artist: channel || 'FocusTube',
-        album: 'FocusTube - Background Player',
+        album: 'Distraction-Free YouTube',
         artwork: [
           {
             src: thumb || '/favicon.ico',
@@ -43,67 +95,94 @@ export default function BackgroundAudioController() {
         ],
       });
 
-      // Bind Lock Screen Controls
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
       try {
         navigator.mediaSession.setActionHandler('play', () => {
           dispatch(setIsPlaying(true));
-          audioRef.current?.play().catch(() => {});
+          sendIframeCommand('playVideo');
+          audioElemRef.current?.play().catch(() => {});
         });
 
         navigator.mediaSession.setActionHandler('pause', () => {
           dispatch(setIsPlaying(false));
-          audioRef.current?.pause();
+          sendIframeCommand('pauseVideo');
+          audioElemRef.current?.pause();
         });
 
-        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-          const skipTime = details.seekOffset || 10;
-          if (audioRef.current) {
-            audioRef.current.currentTime = Math.max(audioRef.current.currentTime - skipTime, 0);
-          }
-        });
-
-        navigator.mediaSession.setActionHandler('seekforward', (details) => {
-          const skipTime = details.seekOffset || 10;
-          if (audioRef.current) {
-            audioRef.current.currentTime += skipTime;
-          }
+        navigator.mediaSession.setActionHandler('seekbackward', () => {
+          try {
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach((iframe) => {
+              iframe.contentWindow?.postMessage(
+                JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
+                '*'
+              );
+            });
+          } catch {}
         });
       } catch (err) {
-        console.warn('MediaSession handler warning:', err);
+        console.warn('MediaSession handler setup:', err);
       }
     }
-  }, [currentVideo, dispatch]);
+  }, [currentVideo, isPlaying, dispatch]);
 
-  // Keep Audio element active for mobile Screen-Off background playback
+  // 3. Audio hardware carrier for mobile screen-off keepalive
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (currentVideo && isBackgroundAudioMode) {
-      if (!audioRef.current) {
-        // High-quality near-silent continuous carrier audio to hold OS background audio focus
-        // Generated sine carrier buffer encoded in data URI
-        const audio = new Audio();
-        audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-        audio.loop = true;
-        audio.volume = 0.05;
-        audioRef.current = audio;
-      }
+    if (currentVideo) {
+      try {
+        // Create an unobtrusive inaudible carrier audio element
+        if (!audioElemRef.current) {
+          const audio = new Audio();
+          // Valid inaudible low-frequency carrier wave that locks mobile audio daemon
+          audio.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA';
+          audio.loop = true;
+          audio.volume = 0.01;
+          audioElemRef.current = audio;
+        }
 
-      audioRef.current.play().catch(() => {
-        // Requires user interaction on some mobile browsers
-      });
-    } else if (audioRef.current) {
-      audioRef.current.pause();
+        audioElemRef.current.play().catch(() => {});
+
+        // Also initiate AudioContext on user interaction
+        if (!audioContextRef.current) {
+          const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.setValueAtTime(20, ctx.currentTime); // Inaudible 20Hz sub-bass
+            gain.gain.setValueAtTime(0.001, ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            audioContextRef.current = ctx;
+            oscillatorRef.current = osc;
+          }
+        } else if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume().catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Background audio keepalive setup:', e);
+      }
+    } else {
+      if (audioElemRef.current) {
+        audioElemRef.current.pause();
+      }
+      if (audioContextRef.current && audioContextRef.current.state === 'running') {
+        audioContextRef.current.suspend().catch(() => {});
+      }
     }
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
+      if (audioElemRef.current) {
+        audioElemRef.current.pause();
       }
     };
-  }, [currentVideo, isBackgroundAudioMode]);
+  }, [currentVideo]);
 
-  // Screen WakeLock API handler
+  // 4. WakeLock handler
   useEffect(() => {
     if (typeof window === 'undefined') return;
 

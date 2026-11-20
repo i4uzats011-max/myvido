@@ -11,9 +11,10 @@ import {
   Trash2,
   Share2,
   ExternalLink,
+  Heart,
 } from 'lucide-react';
 import { YouTubeVideoItem, formatRelativeDate } from '@/lib/youtube';
-import { SavedVideoItem, removeSavedVideo } from '@/store/slices/savedVideosSlice';
+import { SavedVideoItem, removeSavedVideo, saveVideo, updateSavedVideo } from '@/store/slices/savedVideosSlice';
 import { playVideo } from '@/store/slices/playerSlice';
 import { openSaveModal, showToast } from '@/store/slices/uiSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -31,9 +32,39 @@ export default function VideoCard({ video, isSavedCard = false }: VideoCardProps
   const videoId = 'id' in video ? video.id : video.videoId;
   const isSaved = savedVideos.some((v) => v.videoId === videoId);
   const savedItem = savedVideos.find((v) => v.videoId === videoId);
+  const isFavorite = savedItem?.isFavorite || false;
 
   const handlePlay = () => {
     dispatch(playVideo(video));
+  };
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSaved && savedItem) {
+      dispatch(updateSavedVideo({ videoId, isFavorite: !isFavorite }));
+      dispatch(
+        showToast({
+          message: !isFavorite ? 'Saved to Favorites ❤️' : 'Removed from Favorites',
+          type: 'success',
+        })
+      );
+    } else {
+      const videoItem: YouTubeVideoItem = {
+        id: videoId,
+        title: video.title,
+        description: video.description || '',
+        channelTitle: video.channelTitle,
+        channelId: video.channelId || '',
+        thumbnailUrl: video.thumbnailUrl,
+        duration: video.duration,
+        durationSec: video.durationSec,
+        viewCount: video.viewCount,
+        publishedAt: video.publishedAt,
+        isShortOrReel: false,
+      };
+      dispatch(saveVideo({ video: videoItem, folderIds: ['favorites'] }));
+      dispatch(showToast({ message: 'Saved to Favorites ❤️', type: 'success' }));
+    }
   };
 
   const handleSaveClick = (e: React.MouseEvent) => {
@@ -109,7 +140,19 @@ export default function VideoCard({ video, isSavedCard = false }: VideoCardProps
         </div>
 
         {/* Quick Action Overlay (Top Right) */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-90 group-hover:opacity-100 transition">
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition z-10">
+          <button
+            onClick={handleLike}
+            title={isFavorite ? 'Remove from favorites' : 'Quick Like & Favorite'}
+            className={`p-2 rounded-xl backdrop-blur-md transition shadow-md ${
+              isFavorite
+                ? 'bg-rose-600 text-white hover:bg-rose-700'
+                : 'bg-black/70 text-neutral-300 hover:text-rose-400 hover:bg-black/90'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : ''}`} />
+          </button>
+
           <button
             onClick={handleSaveClick}
             title={isSaved ? 'Manage folders' : 'Save to folder'}

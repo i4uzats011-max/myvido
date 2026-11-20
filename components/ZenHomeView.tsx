@@ -317,11 +317,12 @@ export default function ZenHomeView() {
             </span>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {[
+                'Constitutional Law lecture',
+                'Share Market basics for beginners',
+                'GST & Input Tax Credit guide',
                 'Meditation 432Hz deep calm',
-                'Learn Next.js 15 complete course',
-                'TypeScript for beginners',
-                'Deep work binaural focus music',
-                'System design interview',
+                'Learn Next.js & React full course',
+                'Income tax filing tutorial',
               ].map((term) => (
                 <button
                   key={term}

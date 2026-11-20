@@ -20,6 +20,7 @@ import {
   SunMedium,
   Minimize,
   Radio,
+  Heart,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -33,7 +34,7 @@ import {
   PlayerMode,
 } from '@/store/slices/playerSlice';
 import { openSaveModal, showToast } from '@/store/slices/uiSlice';
-import { updateSavedVideo } from '@/store/slices/savedVideosSlice';
+import { updateSavedVideo, saveVideo } from '@/store/slices/savedVideosSlice';
 import { formatRelativeDate } from '@/lib/youtube';
 
 export default function VideoPlayerModal() {
@@ -105,6 +106,44 @@ export default function VideoPlayerModal() {
       );
     }
     setIsSavingNotes(false);
+  };
+
+  const isFavorite = savedItem?.isFavorite ?? false;
+
+  const handleToggleFavorite = async () => {
+    if (!currentVideo) return;
+    const videoToSave = {
+      id: videoId,
+      title: currentVideo.title,
+      description: currentVideo.description || '',
+      channelTitle: currentVideo.channelTitle,
+      channelId: currentVideo.channelId || '',
+      thumbnailUrl: currentVideo.thumbnailUrl,
+      duration: currentVideo.duration,
+      durationSec: currentVideo.durationSec,
+      viewCount: currentVideo.viewCount,
+      publishedAt: currentVideo.publishedAt,
+      isShortOrReel: false,
+    };
+
+    if (isSaved) {
+      await dispatch(updateSavedVideo({ videoId, isFavorite: !isFavorite }));
+      dispatch(
+        showToast({
+          message: !isFavorite ? 'Saved to Liked Videos ❤️' : 'Removed from Liked Videos',
+          type: 'success',
+        })
+      );
+    } else {
+      await dispatch(
+        saveVideo({
+          video: videoToSave,
+          folderIds: ['education'],
+          notes: '',
+        })
+      );
+      dispatch(showToast({ message: 'Liked and saved to your library! ❤️', type: 'success' }));
+    }
   };
 
   const handleShare = () => {
@@ -257,6 +296,21 @@ export default function VideoPlayerModal() {
           </div>
         )}
 
+        {/* iPhone Safari Screen-Off Playback Guide */}
+        <div className="bg-[#181818] border-b border-[#262626] px-4 py-2.5 flex items-start gap-3 text-xs">
+          <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Headphones className="w-3.5 h-3.5" />
+          </div>
+          <div className="space-y-0.5">
+            <span className="font-bold text-amber-300 block text-[11px]">
+              📱 iPhone Safari Background &amp; Screen-Off Play:
+            </span>
+            <p className="text-neutral-300 text-[10px] sm:text-[11px] leading-relaxed">
+              When you lock your phone or switch apps, iOS pauses audio. Simply tap your iPhone lock screen or swipe down Control Center and press <strong>Play (▶)</strong> — audio will continue playing with the screen OFF!
+            </p>
+          </div>
+        </div>
+
         {/* Video Information & Actions Bar */}
         <div className="p-4 sm:p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -283,6 +337,20 @@ export default function VideoPlayerModal() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Like / Favorite Button */}
+              <button
+                onClick={handleToggleFavorite}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition active:scale-95 ${
+                  isFavorite
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-900/30'
+                    : 'bg-[#252525] hover:bg-[#333333] text-neutral-300 hover:text-white border border-[#383838]'
+                }`}
+                title={isFavorite ? 'Unlike video' : 'Like and save video'}
+              >
+                <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : 'text-rose-400'}`} />
+                <span>{isFavorite ? 'Liked' : 'Like'}</span>
+              </button>
+
               <button
                 onClick={() =>
                   dispatch(

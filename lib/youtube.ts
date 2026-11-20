@@ -10,6 +10,7 @@ export interface YouTubeVideoItem {
   viewCount: string;
   publishedAt: string;
   isShortOrReel: boolean;
+  categoryTag?: string;
 }
 
 // Convert ISO 8601 duration string (e.g. "PT1H2M30S" or "PT45S") to total seconds
@@ -74,13 +75,111 @@ export function formatRelativeDate(dateString: string): string {
 }
 
 /**
+ * STRICT CONTENT WHITELIST CATEGORIES:
+ * Allowed: Meditation, Law, Math, Science, Accounts, GST, Income Tax, Technology, News/Elections
+ * Songs Allowed ONLY: T-Series, English Songs, Arijit Singh, Atif Aslam
+ * Blocked: All Movies, Pranks, Vlogs, Gossip, Roast, and other random clutter!
+ */
+export const ALLOWED_CATEGORIES = [
+  { id: 'all', name: 'All Focus', icon: 'sparkles' },
+  { id: 'share-market', name: 'Share Market & Stocks', keywords: ['share market', 'stock market', 'nifty', 'sensex', 'trading', 'investing', 'mutual funds', 'ipo', 'stocks', 'equity', 'demat', 'intraday'] },
+  { id: 'gst', name: 'GST & ITC', keywords: ['gst', 'gstr', 'gst portal', 'itc', 'input tax credit', 'pmt-10', 'pmt 10', 'gst return'] },
+  { id: 'income-tax', name: 'Income Tax', keywords: ['income tax', 'itr', 'tax return', 'taxation', 'tds', 'pan card', 'tax audit', 'form 16'] },
+  { id: 'accounts', name: 'Accounts', keywords: ['accounts', 'accounting', 'tally', 'balance sheet', 'bookkeeping', 'commerce', 'ledger', 'audit'] },
+  { id: 'law', name: 'Law & Legal', keywords: ['law', 'legal', 'kanoon', 'advocate', 'court', 'ipc', 'crpc', 'constitution', 'act', 'section'] },
+  { id: 'technology', name: 'Technologies', keywords: ['technology', 'programming', 'coding', 'software', 'ai', 'computer science', 'web development', 'python', 'javascript', 'tech'] },
+  { id: 'meditation', name: 'Meditation', keywords: ['meditation', 'mindfulness', 'calm', 'dhyan', 'peaceful', 'relaxing sounds'] },
+  { id: 'science', name: 'Science', keywords: ['science', 'physics', 'chemistry', 'biology', 'space', 'astronomy', 'scientific'] },
+  { id: 'math', name: 'Math', keywords: ['math', 'mathematics', 'calculus', 'algebra', 'trigonometry', 'geometry', 'ganit'] },
+  { id: 'news', name: 'News & Elections', keywords: ['news', 'election', 'chunav', 'breaking news', 'current affairs', 'general news', 'politics news'] },
+  { id: 'songs', name: 'Curated Songs', keywords: ['t-series', 'arijit singh', 'atif aslam', 'a.r. rahman', 'ar rahman', 'english song', 'english songs'] },
+];
+
+// Blocked Junk Keywords (Movies, Pranks, Vlogs, Roast, Gossip, etc.)
+const BLOCKED_JUNK_PATTERNS = [
+  'full movie',
+  'full hd movie',
+  'south movie',
+  'hindi dubbed movie',
+  'cinema',
+  'blockbuster movie',
+  'prank',
+  'pranks',
+  'roast',
+  'roasting',
+  'daily vlog',
+  'vlog',
+  'vlogs',
+  'gossip',
+  'scandal',
+  'celebrity gossip',
+  'trailer',
+  'teaser',
+  'behind the scenes',
+  'blooper',
+  'bloopers',
+  'funny video',
+  'comedy video',
+  'chutkule',
+];
+
+/**
+ * Strictly validates if video content is permissible under user's rules:
+ * - NO Movies, Pranks, Vlogs, Gossip, Roast
+ * - If it's a song: MUST be T-Series, English song, Arijit Singh, or Atif Aslam!
+ */
+export function isContentAllowed(
+  title: string,
+  description: string,
+  channelTitle: string
+): { allowed: boolean; reason?: string } {
+  const combined = `${title} ${description} ${channelTitle}`.toLowerCase();
+
+  // 1. Block movies and junk patterns
+  for (const junk of BLOCKED_JUNK_PATTERNS) {
+    if (combined.includes(junk)) {
+      return { allowed: false, reason: 'Movies and entertainment junk are blocked' };
+    }
+  }
+
+  // 2. Song restriction check:
+  // If the video is a song/music, verify it matches allowed artist/channel criteria
+  const isSongDetected =
+    combined.includes('song') ||
+    combined.includes('music') ||
+    combined.includes('lyrics') ||
+    combined.includes('gaana') ||
+    combined.includes('audio');
+
+  if (isSongDetected) {
+    const isTSeries = combined.includes('t-series') || combined.includes('tseries');
+    const isArijit = combined.includes('arijit singh') || combined.includes('arijit');
+    const isAtif = combined.includes('atif aslam') || combined.includes('atif');
+    const isARRahman =
+      combined.includes('a.r. rahman') ||
+      combined.includes('ar rahman') ||
+      combined.includes('a r rahman') ||
+      combined.includes('rahman');
+    const isEnglishSong =
+      combined.includes('english song') ||
+      combined.includes('english songs') ||
+      combined.includes('pop song') ||
+      combined.includes('billboard') ||
+      /\b(english)\b/i.test(combined);
+
+    if (!isTSeries && !isArijit && !isAtif && !isARRahman && !isEnglishSong) {
+      return {
+        allowed: false,
+        reason: 'Only T-Series, English songs, Arijit Singh, Atif Aslam & A.R. Rahman songs are allowed',
+      };
+    }
+  }
+
+  return { allowed: true };
+}
+
+/**
  * STRICT Anti-Reels & Anti-Shorts Detection
- * 
- * Rules:
- * 1. Duration <= 70 seconds -> 100% REEL/SHORT (Exclude)
- * 2. Title or description contains #shorts, #short, #reels, #reel, #youtubeshorts, #tiktok -> Exclude
- * 3. Duration < 180 seconds (3 mins) AND contains "short" or "reel" keywords -> Exclude
- * 4. User can configure stricter minimum duration (e.g. >2 mins or >4 mins)
  */
 export function isReelOrShort(
   video: {
@@ -90,12 +189,10 @@ export function isReelOrShort(
   },
   minDurationSeconds: number = 70
 ): boolean {
-  // Rule 1: Minimum duration threshold
   if (video.durationSec < minDurationSeconds) {
     return true;
   }
 
-  // Rule 2: Hashtag and keyword detection
   const combined = `${video.title} ${video.description}`.toLowerCase();
   const bannedKeywords = [
     '#shorts',
@@ -121,7 +218,6 @@ export function isReelOrShort(
     }
   }
 
-  // Rule 3: For videos under 3 minutes, detect vertical / short video mentions
   if (video.durationSec <= 180) {
     if (
       /\bshort\b/i.test(video.title) ||
