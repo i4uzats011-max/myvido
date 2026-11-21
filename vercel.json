@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/warehouse/sync",
+      "schedule": "0 */2 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/warehouse/sync/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/warehouse/export/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

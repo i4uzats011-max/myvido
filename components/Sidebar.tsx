@@ -20,6 +20,7 @@ import {
   X,
   PlaySquare,
   Lock,
+  Boxes,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setActiveFolder } from '@/store/slices/foldersSlice';
@@ -139,6 +140,27 @@ export default function Sidebar() {
           </div>
           <span className="text-xs px-2 py-0.5 rounded-full bg-[#252525] text-emerald-400">
             {persons.length}
+          </span>
+        </button>
+
+        {/* 4. Warehouse Tracker & Entry Dates */}
+        <button
+          onClick={() => {
+            dispatch(setActiveView('warehouse'));
+            dispatch(setMobileDrawerOpen(false));
+          }}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition active:scale-[0.99] ${
+            activeView === 'warehouse'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
+              : 'text-neutral-300 hover:bg-[#1a1a1a] hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Boxes className="w-4 h-4 text-blue-400" />
+            <span>Warehouse Tracker</span>
+          </div>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#252525] text-blue-300 font-mono">
+            入仓
           </span>
         </button>
       </div>

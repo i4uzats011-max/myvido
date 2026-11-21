@@ -3,7 +3,7 @@ import { YouTubeVideoItem } from '@/lib/youtube';
 import { SavedVideoItem } from './savedVideosSlice';
 
 type VideoModalTarget = YouTubeVideoItem | SavedVideoItem | null;
-export type ActiveAppView = 'tasks' | 'calendar' | 'ledger' | 'saved' | 'search' | 'history';
+export type ActiveAppView = 'tasks' | 'calendar' | 'ledger' | 'warehouse' | 'saved' | 'search' | 'history';
 
 interface UiState {
   isSidebarOpen: boolean;

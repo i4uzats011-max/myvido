@@ -16,6 +16,7 @@ import LoginScreen from '@/components/LoginScreen';
 import DailyTasksPanel from '@/components/DailyTasksPanel';
 import CalendarCompliancePanel from '@/components/CalendarCompliancePanel';
 import HisaabKitaabPanel from '@/components/HisaabKitaabPanel';
+import WarehouseTrackerPanel from '@/components/WarehouseTrackerPanel';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { clearToast } from '@/store/slices/uiSlice';
@@ -60,6 +61,7 @@ export default function Home() {
           {activeView === 'tasks' && <DailyTasksPanel />}
           {activeView === 'calendar' && <CalendarCompliancePanel />}
           {activeView === 'ledger' && <HisaabKitaabPanel />}
+          {activeView === 'warehouse' && <WarehouseTrackerPanel />}
           {(activeView === 'saved' || activeView === 'search' || activeView === 'history') && (
             <ZenHomeView />
           )}
