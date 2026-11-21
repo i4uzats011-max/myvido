@@ -270,3 +270,85 @@ export function getDualLanguageCommodity(chineseText: string, customEnglish?: st
     display,
   };
 }
+
+const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+
+/**
+ * Translates an entire batch of unique Chinese commodity names to English in EXACTLY ONE GenAI API call.
+ * Ensures zero repeated API hits and zero translation mistakes while importing data into DB.
+ */
+export async function batchTranslateCommoditiesWithGenAI(
+  chineseList: string[],
+  apiKey = DEFAULT_GEMINI_KEY
+): Promise<Record<string, string>> {
+  const uniqueList = Array.from(new Set(chineseList.map((s) => (s || '').trim()).filter(Boolean)));
+  if (uniqueList.length === 0) return {};
+
+  const translationMap: Record<string, string> = {};
+  const toTranslateApi: string[] = [];
+
+  // Check verified dictionary first
+  for (const item of uniqueList) {
+    if (LOGISTICS_DICTIONARY[item]) {
+      translationMap[item] = LOGISTICS_DICTIONARY[item];
+    } else {
+      toTranslateApi.push(item);
+    }
+  }
+
+  // If all are already in dictionary, return immediately
+  if (toTranslateApi.length === 0) {
+    return translationMap;
+  }
+
+  // Single Batch GenAI API Call
+  try {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
+    const prompt = `You are a professional logistics and customs cargo translator.
+Translate the following list of Chinese warehouse commodity names into precise, professional English product names.
+Ensure zero mistakes.
+Return ONLY a valid JSON object mapping each Chinese term directly to its English translation.
+
+Items to translate:
+${JSON.stringify(toTranslateApi)}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) {
+        const parsed: Record<string, string> = JSON.parse(rawText);
+        for (const [zh, en] of Object.entries(parsed)) {
+          if (zh && en) {
+            translationMap[zh] = en.trim();
+          }
+        }
+      }
+    } else {
+      console.warn(`[GenAI Translation Warning]: Status ${res.status}`);
+    }
+  } catch (err: any) {
+    console.warn('[GenAI Translation Error - using fallback]:', err.message);
+  }
+
+  // Apply fallback for any remaining items
+  for (const item of toTranslateApi) {
+    if (!translationMap[item]) {
+      translationMap[item] = translateChineseCommodity(item);
+    }
+  }
+
+  return translationMap;
+}

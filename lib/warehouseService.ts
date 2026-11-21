@@ -1,6 +1,6 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import { WarehouseEntry } from '@/lib/models/WarehouseEntry';
-import { translateChineseCommodity } from '@/lib/warehouseTranslation';
+import { translateChineseCommodity, batchTranslateCommoditiesWithGenAI } from '@/lib/warehouseTranslation';
 
 export interface WarehouseConfig {
   code: string; // e.g. "RS-21"
@@ -124,9 +124,19 @@ export async function syncSingleWarehouse(config: WarehouseConfig, limit = 500) 
     };
   }
 
+  // 1. Extract all unique Chinese commodity names across the entire raw items batch
+  const uniqueCommodities = Array.from(
+    new Set(rawItems.map((item) => (item.commodity || '').trim()).filter(Boolean))
+  );
+
+  // 2. Translate ALL unique commodities using Gemini AI in EXACTLY ONE single batch API call
+  console.log(`[Warehouse Sync] Translating ${uniqueCommodities.length} unique commodities with Gemini AI in 1 call...`);
+  const translationMap = await batchTranslateCommoditiesWithGenAI(uniqueCommodities);
+  console.log(`[Warehouse Sync] Gemini AI translation complete.`);
+
   const operations = rawItems.map((item) => {
     const commodityZh = (item.commodity || '').trim();
-    const commodityEn = translateChineseCommodity(commodityZh);
+    const commodityEn = translationMap[commodityZh] || translateChineseCommodity(commodityZh);
     const dateReceivedAt = parseWarehouseDate(item.date);
 
     return {
