@@ -10,14 +10,14 @@ on:
 jobs:
   build-ios:
     name: Build FocusTube iOS App
-    runs-on: macos-14
+    runs-on: macos-13
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Select Xcode Version
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app || sudo xcode-select -switch /Applications/Xcode.app
+        run: sudo xcode-select -switch /Applications/Xcode_15.2.app || sudo xcode-select -switch /Applications/Xcode_15.0.1.app || sudo xcode-select -switch /Applications/Xcode_14.3.1.app || sudo xcode-select -switch /Applications/Xcode.app
 
       - name: Show Xcode Version
         run: xcodebuild -version
