@@ -58,10 +58,10 @@ A Zen-mode YouTube web application built with **Next.js 16**, **React 19**, **Re
 
 ```env
 # YouTube Data API v3 Key
-YOUTUBE_API_KEY=AIzaSyCVEsCgQOAyyCpxvQ_O_cRBElQ1fXN-mSg
+YOUTUBE_API_KEY=your_youtube_api_key_here
 
 # MongoDB Connection
-MONGODB_URI=mongodb+srv://i4uzats011_db_user:K7X5BETnFdTgTgTE@cluster0.2gn7lxt.mongodb.net/focustube?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.example.mongodb.net/focustube?retryWrites=true&w=majority
 MONGO_DB=focustube
 ```
 

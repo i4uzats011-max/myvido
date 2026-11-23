@@ -1,0 +1,291 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A100000129B7F10000000001 /* FocusTubeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000229B7F10000000001 /* FocusTubeApp.swift */; };
+		A100000329B7F10000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000429B7F10000000001 /* ContentView.swift */; };
+		A100000529B7F10000000001 /* FocusTubeWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000629B7F10000000001 /* FocusTubeWebView.swift */; };
+		A100000729B7F10000000001 /* BackgroundPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000829B7F10000000001 /* BackgroundPlayerManager.swift */; };
+		A100000929B7F10000000001 /* FocusTubeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001029B7F10000000001 /* FocusTubeConfig.swift */; };
+		A100001129B7F10000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A100001229B7F10000000001 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A100001329B7F10000000001 /* FocusTube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FocusTube.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A100000229B7F10000000001 /* FocusTubeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusTubeApp.swift; sourceTree = "<group>"; };
+		A100000429B7F10000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A100000629B7F10000000001 /* FocusTubeWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusTubeWebView.swift; sourceTree = "<group>"; };
+		A100000829B7F10000000001 /* BackgroundPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundPlayerManager.swift; sourceTree = "<group>"; };
+		A100001029B7F10000000001 /* FocusTubeConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusTubeConfig.swift; sourceTree = "<group>"; };
+		A100001229B7F10000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A100001429B7F10000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A100001529B7F10000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A100001629B7F10000000001 = {
+			isa = PBXGroup;
+			children = (
+				A100001729B7F10000000001 /* FocusTube */,
+				A100001829B7F10000000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A100001729B7F10000000001 /* FocusTube */ = {
+			isa = PBXGroup;
+			children = (
+				A100000229B7F10000000001 /* FocusTubeApp.swift */,
+				A100000429B7F10000000001 /* ContentView.swift */,
+				A100000629B7F10000000001 /* FocusTubeWebView.swift */,
+				A100000829B7F10000000001 /* BackgroundPlayerManager.swift */,
+				A100001029B7F10000000001 /* FocusTubeConfig.swift */,
+				A100001229B7F10000000001 /* Assets.xcassets */,
+				A100001429B7F10000000001 /* Info.plist */,
+			);
+			path = FocusTube;
+			sourceTree = "<group>";
+		};
+		A100001829B7F10000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A100001329B7F10000000001 /* FocusTube.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A100001929B7F10000000001 /* FocusTube */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A100002029B7F10000000001 /* Build configuration list for PBXNativeTarget "FocusTube" */;
+			buildPhases = (
+				A100002129B7F10000000001 /* Sources */,
+				A100001529B7F10000000001 /* Frameworks */,
+				A100002229B7F10000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FocusTube;
+			productName = FocusTube;
+			productReference = A100001329B7F10000000001 /* FocusTube.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A100002329B7F10000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A100001929B7F10000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A100002429B7F10000000001 /* Build configuration list for PBXProject "FocusTube" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A100001629B7F10000000001;
+			productRefGroup = A100001829B7F10000000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A100001929B7F10000000001 /* FocusTube */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A100002229B7F10000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100001129B7F10000000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A100002129B7F10000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100000129B7F10000000001 /* FocusTubeApp.swift in Sources */,
+				A100000329B7F10000000001 /* ContentView.swift in Sources */,
+				A100000529B7F10000000001 /* FocusTubeWebView.swift in Sources */,
+				A100000729B7F10000000001 /* BackgroundPlayerManager.swift in Sources */,
+				A100000929B7F10000000001 /* FocusTubeConfig.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A100002529B7F10000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A100002629B7F10000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A100002729B7F10000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FocusTube/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FocusTube;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.focustube.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A100002829B7F10000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FocusTube/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FocusTube;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.focustube.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A100002429B7F10000000001 /* Build configuration list for PBXProject "FocusTube" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A100002529B7F10000000001 /* Debug */,
+				A100002629B7F10000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A100002029B7F10000000001 /* Build configuration list for PBXNativeTarget "FocusTube" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A100002729B7F10000000001 /* Debug */,
+				A100002829B7F10000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = A100002329B7F10000000001 /* Project object */;
+}
